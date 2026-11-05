@@ -6,10 +6,19 @@
 <style>
 html,body{height:100%;margin:0;font:14px sans-serif}
 #map{position:absolute;inset:0;background:#f8f9fa}
-#bar{position:absolute;top:10px;left:50px;right:10px;z-index:1000;background:rgba(0,0,0,.85);color:#fff;padding:8px 12px;border-radius:6px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#bar{position:absolute;top:10px;left:50px;width:min(460px,calc(100vw - 62px));z-index:1000;background:rgba(0,0,0,.85);color:#fff;padding:8px 12px;border-radius:8px;box-sizing:border-box}
+#bhead{display:flex;align-items:center;gap:10px}
+#barbody{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0}
+.row>b{flex:0 0 62px;font-size:12px;font-weight:600;opacity:.75;text-transform:uppercase}
+.sec{border-top:1px solid rgba(255,255,255,.2);padding-top:8px}
+#q{flex:1;min-width:130px;font-size:16px;padding:4px 6px}
+#bar.min #msg{display:none}
 #bar i{display:inline-block;width:12px;height:12px;margin:0 3px 0 8px;vertical-align:middle;border:1px solid #fff}
 button{cursor:pointer;padding:4px 10px}
-#bar.min{background:transparent!important;padding:0;right:auto}
+#sres{display:none;background:#fff;color:#000;border-radius:4px;max-height:40vh;overflow:auto}
+#sres div{padding:8px 10px;cursor:pointer;border-bottom:1px solid #ddd}
+#bar.min{background:transparent!important;padding:0;width:auto}
 #bar.min #hide{background:rgba(0,0,0,.85);color:#fff;border:0;border-radius:6px;padding:6px 10px}
 #panel{display:none;position:absolute;top:60px;right:10px;bottom:10px;width:min(440px,92vw);z-index:1000;background:#fff;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.4);padding:10px;flex-direction:column;gap:6px;box-sizing:border-box}
 #panel textarea{font:12px monospace;width:100%;box-sizing:border-box}
@@ -18,10 +27,16 @@ button{cursor:pointer;padding:4px 10px}
 #names{display:none;height:90px}
 .leaflet-popup-content button{min-width:38px;min-height:36px;font-size:18px}
 </style></head><body>
-<div id="bar"><button id="hide" title="Meldungen ein-/ausblenden">▲</button><span id="barbody" style="display:contents"><span id="msg">Starte…</span>
-<span>Farbe nach Anzahl:<i style="background:#fee08b"></i>1<i style="background:#fdae61"></i>2–3<i style="background:#f46d43"></i>4–9<i style="background:#a50026"></i>10+</span>
-<button id="tgl">Daten &amp; Prüfung</button>
-<label><input type="checkbox" id="pick"> Standort per Klick setzen</label> <button id="loc">Browser-Standort</button> <span id="geo"></span></span></div>
+<div id="bar">
+<div id="bhead"><button id="hide" title="Ein-/ausblenden">▲</button><span id="msg">Starte…</span></div>
+<div id="barbody">
+<form id="sform" class="row"><b>Suche</b><input id="q" placeholder="Adresse suchen…"><button>Suchen</button></form>
+<div id="sres"></div>
+<div class="row sec"><b>Legende</b><span><i style="background:#fee08b"></i>1<i style="background:#fdae61"></i>2–3<i style="background:#f46d43"></i>4–9<i style="background:#a50026"></i>10+</span></div>
+<div class="row sec"><b>Standort</b><label><input type="checkbox" id="pick"> per Klick setzen</label><button id="loc">Browser-Standort</button><span id="geo"></span></div>
+<div class="row sec"><b>Daten</b><button id="tgl">Daten &amp; Prüfung</button></div>
+</div>
+</div>
 <div id="panel">
 <b>Liste (Name;Anzahl – „(Lkr)“ bzw. „(Kr)“ = Landkreis, ohne Zusatz = Stadt, falls es eine gibt)</b>
 <textarea id="daten">Ahrweiler (Lkr);0
@@ -496,7 +511,7 @@ Saale-Holzland-Kreis=Saale-Holzland</textarea>
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-function status(m,err){$('msg').textContent=m;$('bar').style.background=err?'#b02a37':'rgba(0,0,0,.85)';}
+function status(m,err){$('msg').textContent=m;$('msg').style.color=err?'#ffb4ab':'#fff';$('hide').style.background=err?'#b02a37':'';}
 window.onerror=(m,u,l)=>status('JS-Fehler Zeile '+l+': '+m,true);
 
 // Normalisierung: Umlaute auflösen, nur a-z0-9 behalten
@@ -596,7 +611,7 @@ function render(){
     '<b>Mehrdeutig ('+rep.amb.length+')</b>'+li(rep.amb.map(e=>esc(e.raw)))+
     '<b>Gebiet doppelt belegt ('+rep.dup.length+')</b>'+li(rep.dup.map(([a,b])=>esc(a.raw)+' ↔ '+esc(b.raw)));
 }
-$('tgl').onclick=()=>{const p=$('panel');p.style.display=p.style.display==='flex'?'none':'flex';};
+$('tgl').onclick=()=>{const p=$('panel'),on=p.style.display!=='flex';p.style.display=on?'flex':'none';if(on)p.style.top=(innerWidth<900?$('bar').offsetTop+$('bar').offsetHeight+10:10)+'px';};
 try{const sd=localStorage.getItem('lk_daten'),sa=localStorage.getItem('lk_alias');if(sd)$('daten').value=sd;if(sa)$('alias').value=sa;}catch(e){}
 $('apply').onclick=()=>{save();render();};
 $('copy').onclick=()=>{const t=$('daten');t.select();try{navigator.clipboard.writeText(t.value);}catch(e){document.execCommand('copy');}status('Liste kopiert');};
@@ -604,7 +619,10 @@ $('reset').onclick=()=>{if(confirm('Gespeicherte Änderungen verwerfen und den S
 $('shownames').onclick=()=>{const v=$('names');v.style.display='block';
   v.value=feats?feats.map(f=>{const i=info(f);return i.name+';'+i.bez;}).join('\n'):'(Karte noch nicht geladen)';v.select();};
 
-map=L.map('map').setView([51.1657,10.4515],6);
+let v0=null;try{v0=JSON.parse(localStorage.getItem('lk_view')||'null');}catch(e){}
+map=L.map('map').setView(v0?[v0.lat,v0.lng]:[51.1657,10.4515],v0?v0.z:6);
+map.on('moveend',()=>{try{const c=map.getCenter();localStorage.setItem('lk_view',JSON.stringify({lat:c.lat,lng:c.lng,z:map.getZoom()}));}catch(e){}});
+map.on('click',()=>{$('sres').style.display='none';});
 L.tileLayer('https://{s}.tile.openstreetmap.de/tiles/osmde/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
 status('Lade Kreisgrenzen…');
 fetch('https://cdn.jsdelivr.net/gh/isellsoap/deutschlandGeoJSON@master/4_kreise/2_hoch.geo.json')
@@ -639,8 +657,7 @@ function getLoc(){
     {enableHighAccuracy:true,timeout:15000});
 }
 $('loc').onclick=getLoc;
-$('hide').onclick=()=>{const b=$('barbody'),h=b.style.display==='none';b.style.display=h?'contents':'none';$('hide').textContent=h?'▲':'▼';$('bar').classList.toggle('min',!h);};
-getLoc();
+$('hide').onclick=()=>{const b=$('barbody'),h=b.style.display==='none';b.style.display=h?'':'none';$('hide').textContent=h?'▲':'▼';$('bar').classList.toggle('min',!h);};
 
 // ---- GitHub-Sync: Liste + Zuordnungen als JSON-Datei in einem Repo ----
 const GH_KEY='lk_gh';
@@ -684,4 +701,18 @@ $('ghconnect').onclick=async()=>{
 $('ghoff').onclick=()=>{try{localStorage.removeItem(GH_KEY);}catch(e){}gh('Getrennt (nur noch lokal)');};
 if(ghCfg())ghLoad().then(r=>{if(r)render();gh(r==='none'?'GitHub: Datei noch nicht vorhanden':'GitHub: Stand geladen');}).catch(e=>gh('GitHub-Laden fehlgeschlagen: '+e.message));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&ghCfg()&&!ghTimer)ghLoad().then(r=>{if(r)render();}).catch(()=>{});});
+
+$('sform').onsubmit=async ev=>{
+  ev.preventDefault();const q=$('q').value.trim();if(!q)return;
+  const box=$('sres');box.style.display='block';box.textContent='suche…';
+  try{
+    const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=de&accept-language=de&q='+encodeURIComponent(q));
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const a=await r.json();box.textContent='';
+    if(!a.length){box.textContent='Nichts gefunden';return;}
+    a.forEach(x=>{const d=document.createElement('div');d.textContent=x.display_name;
+      d.onclick=()=>{box.style.display='none';const ll=[+x.lat,+x.lon];map.setView(ll,14);setPos(ll,x.display_name.split(',').slice(0,2).join(','),false);};
+      box.appendChild(d);});
+  }catch(e){box.textContent='Suche fehlgeschlagen: '+e.message;}
+};
 </script></body></html>
