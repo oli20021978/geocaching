@@ -1,1038 +1,1043 @@
 <!DOCTYPE html>
-<html lang="de" class="antialiased">
+<html lang="de">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>GPX Layer &amp; Symbol Studio für OsmAnd</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Inter Font -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <!-- Leaflet CSS & JS für optionale Karten-Vorschau (ZIP läuft jetzt 100% nativ ohne CDN) -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-
   <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'system-ui', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          },
-          colors: {
-            brand: {
-              50: '#ecfdf5',
-              100: '#d1fae5',
-              500: '#10b981',
-              600: '#059669',
-              700: '#047857',
-              900: '#064e3b',
-            }
-          }
-        }
+    // Inline Global Error-Catcher im <head>, fängt jeden Syntax-, Skript- oder Laufzeitfehler ab
+    window.__earlyErrors = [];
+    function __reportEarlyError(msg) {
+      window.__earlyErrors.push(msg);
+      var banner = document.getElementById('early-error-banner');
+      var list = document.getElementById('early-error-list');
+      if (banner && list) {
+        banner.style.display = 'block';
+        var item = document.createElement('div');
+        item.textContent = msg;
+        list.appendChild(item);
       }
-    };
+      if (typeof window.appLog === 'function') {
+        window.appLog('ERROR', msg);
+      }
+    }
+    window.addEventListener('error', function(e) {
+      var detail = (e && e.message ? e.message : 'Unbekannter Skriptfehler') +
+        (e && e.lineno ? ' (Zeile ' + e.lineno + ')' : '');
+      __reportEarlyError(detail);
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      var reason = e && e.reason ? (e.reason.message || String(e.reason)) : 'Unbekannte Promise-Rejection';
+      __reportEarlyError('Promise-Fehler: ' + reason);
+    });
   </script>
   <style>
-    /* Custom Scrollbar & Map Tweaks */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
+    :root {
+      --bg: #f4f7f5;
+      --card: #ffffff;
+      --text: #18231e;
+      --muted: #5a6b63;
+      --border: #dce5e0;
+      --primary: #147a4c;
+      --primary-hover: #0f623c;
+      --primary-soft: #e6f4ed;
+      --accent: #2563eb;
+      --danger: #dc2626;
+      --warn: #d97706;
+      --radius: 14px;
+      --shadow: 0 2px 10px rgba(16, 32, 24, 0.06);
     }
-    ::-webkit-scrollbar-track {
-      background: transparent;
+
+    * {
+      box-sizing: border-box;
     }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(148, 163, 184, 0.4);
-      border-radius: 9999px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(148, 163, 184, 0.6);
-    }
-    #mapContainer {
-      z-index: 10;
-    }
-    .leaflet-popup-content-wrapper {
-      border-radius: 0.75rem;
-      font-family: 'Inter', sans-serif;
-    }
-    .osmand-leaflet-icon {
-      background: transparent !important;
-      border: none !important;
-    }
+
     html, body {
-      height: auto;
-      min-height: 100dvh;
-      overflow-y: auto;
-      overflow-x: hidden;
       margin: 0;
       padding: 0;
+      min-height: 100dvh;
+      overflow-y: auto;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      -webkit-text-size-adjust: 100%;
     }
-    .safe-header-padding {
-      padding-top: max(12px, env(safe-area-inset-top));
+
+    body {
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 32px);
+    }
+
+    #early-error-banner {
+      display: none;
+      background: #fee2e2;
+      border-bottom: 2px solid #dc2626;
+      color: #7f1d1d;
+      padding: 12px 16px;
+      font-size: 13px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    header.app-header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+
+    .header-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 700;
+      margin: 0;
+      color: var(--text);
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    main.container {
+      max-width: 1120px;
+      margin: 16px auto;
+      padding: 0 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .step-badge {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-title {
+      font-size: 17px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .step-desc {
+      font-size: 13.5px;
+      color: var(--muted);
+      margin: 0 0 14px 0;
+    }
+
+    /* Android-sichere Dropzone: Echtes <input type="file"> liegt transparent über der gesamten Fläche */
+    .dropzone-wrapper {
+      position: relative;
+      border: 2px dashed #48a87c;
+      border-radius: 12px;
+      background: #f9fcfa;
+      padding: 26px 16px;
+      text-align: center;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      overflow: hidden;
+    }
+
+    .dropzone-wrapper.dragover,
+    .dropzone-wrapper:hover {
+      background: var(--primary-soft);
+      border-color: var(--primary);
+    }
+
+    .dropzone-overlay-input {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 10;
+      font-size: 16px;
+    }
+
+    .dropzone-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 10px auto;
+      border-radius: 12px;
+      background: #d5f0e3;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .dropzone-main-text {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 0 0 4px 0;
+      color: var(--text);
+    }
+
+    .dropzone-link {
+      color: var(--primary);
+      text-decoration: underline;
+    }
+
+    .dropzone-sub-text {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .paste-section {
+      margin-top: 14px;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+    }
+
+    .paste-toggle {
+      background: none;
+      border: none;
+      padding: 4px 0;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .paste-box {
+      display: none;
+      margin-top: 10px;
+    }
+
+    .paste-box.open {
+      display: block;
+    }
+
+    textarea.xml-input {
+      width: 100%;
+      min-height: 120px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      resize: vertical;
+      background: #fbfdfc;
+      color: var(--text);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 14px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover {
+      background: #f1f5f3;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-sm {
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 7px;
+    }
+
+    /* Status, Fortschritt & Live-Log */
+    .status-bar {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #9ca3af;
+      flex-shrink: 0;
+    }
+
+    .dot.ok { background: #16a34a; }
+    .dot.busy { background: #2563eb; }
+    .dot.err { background: #dc2626; }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: #e5ece8;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 8px 0 10px 0;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--primary);
+      transition: width 0.15s ease;
+    }
+
+    .log-panel {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11.5px;
+    }
+
+    .log-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    .log-badge {
+      background: #334155;
+      color: #fff;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+    }
+
+    .log-entries {
+      max-height: 180px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      word-break: break-word;
+    }
+
+    .log-line.ERROR { color: #fca5a5; }
+    .log-line.WARN { color: #fcd34d; }
+    .log-line.SUCCESS { color: #86efac; }
+    .log-line.INFO { color: #cbd5e1; }
+
+    /* Optionen & Tabellen */
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .field-group label {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    select, input[type="text"], input[type="color"] {
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    input[type="color"] {
+      padding: 2px 4px;
+      height: 36px;
+      width: 48px;
+      cursor: pointer;
+    }
+
+    .found-box {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      min-width: 680px;
+    }
+
+    th, td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    th {
+      background: #f6f9f7;
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Live OsmAnd Pin Vorschau (Kreis, Achteck, Quadrat) */
+    .osmand-pin {
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 700;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.22);
+      border: 2px solid #ffffff;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .osmand-pin.circle {
+      border-radius: 50%;
+    }
+
+    .osmand-pin.square {
+      border-radius: 7px;
+    }
+
+    .osmand-pin.octagon {
+      border-radius: 0;
+      border: none;
+      clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+    }
+
+    .stats-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .stat-pill {
+      background: var(--primary-soft);
+      color: var(--primary);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+
+    .export-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
     }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-[100dvh] flex flex-col transition-colors duration-200">
+<body>
 
-  <!-- Toast Notification Banner (ersetzt alert()) -->
-  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+  <div id="early-error-banner">
+    <strong>JavaScript-Fehler erkannt:</strong>
+    <div id="early-error-list"></div>
+  </div>
 
-  <!-- Header (nicht mehr sticky mit fixer Höhe, damit auf Mobile/Canvas oben nichts abgeschnitten wird) -->
-  <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 safe-header-padding pb-3 z-30">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm shrink-0">
-          <!-- Compass / Layer SVG Icon -->
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-          </svg>
-        </div>
-        <div class="min-w-0">
-          <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-snug break-words">
-            GPX Layer &amp; Symbol Studio
-          </h1>
-          <p class="text-xs text-slate-500 dark:text-slate-400">
-            Ebenen- &amp; Icon-Anreicherung für OsmAnd (Offline &amp; Lokal)
-          </p>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-icon">G</div>
+        <div>
+          <h1 class="brand-title">GPX Layer &amp; Symbol Studio</h1>
+          <p class="brand-sub">Ebenen, Symbole &amp; Fund-Markierungen für OsmAnd aufbereiten</p>
         </div>
       </div>
-
-      <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-        <button id="btnLoadDemo" type="button" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800/70 transition cursor-pointer">
-          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
-          <span>Demo-GPX laden</span>
-        </button>
-
-        <button id="btnResetAll" type="button" title="Alle Daten zurücksetzen" class="hidden inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition cursor-pointer">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-          <span class="hidden sm:inline">Leeren</span>
-        </button>
-
-        <button id="btnThemeToggle" type="button" aria-label="Farbschema wechseln" class="p-2.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition cursor-pointer">
-          <!-- Sun / Moon Icons -->
-          <svg id="iconSun" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-          <svg id="iconMoon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-          </svg>
-        </button>
+      <div class="header-actions">
+        <button type="button" class="btn btn-sm" id="btn-load-demo">Demo-GPX laden</button>
+        <button type="button" class="btn btn-sm" id="btn-clear-all">Zurücksetzen</button>
       </div>
     </div>
   </header>
 
-  <!-- Main Content -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-
-    <!-- Step 1: Upload / Dropzone -->
-    <section aria-label="Datei-Import" class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 sm:p-6">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-        <div>
-          <h2 class="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-            <span class="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-center">1</span>
-            GPX- oder ZIP-Dateien einlesen
-          </h2>
-          <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Unterstützt Standard-GPX 1.1, Groundspeak Pocket Queries und ZIP-Archive mit mehreren GPX-Dateien. Alles bleibt lokal auf deinem Gerät.
-          </p>
-        </div>
-        <div id="loadedFilesBadge" class="hidden flex-wrap items-center gap-1.5 text-xs"></div>
+  <main class="container">
+    <!-- SCHRITT 1: IMPORT -->
+    <section class="card">
+      <div class="step-header">
+        <span class="step-badge">1</span>
+        <h2 class="step-title">GPX- oder ZIP-Dateien einlesen</h2>
       </div>
+      <p class="step-desc">Unterstützt Standard-GPX 1.1, Groundspeak Pocket Queries und ZIP-Archive mit mehreren GPX-Dateien. Alles läuft 100 % lokal im Browser.</p>
 
-      <div id="dropZone" class="relative border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl p-6 sm:p-8 text-center transition-colors cursor-pointer bg-slate-50/60 dark:bg-slate-950/40">
-        <!-- Kein accept-Attribut, damit Android-Dateimanager .gpx-Dateien nicht ausgrauen -->
-        <input id="fileInput" type="file" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-        <div class="mx-auto w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-          </svg>
-        </div>
-        <p class="text-sm font-medium text-slate-800 dark:text-slate-200">
-          GPX- oder ZIP-Dateien hier ablegen oder <span class="text-emerald-600 dark:text-emerald-400 underline">durchsuchen</span>
+      <div class="dropzone-wrapper" id="dropzone">
+        <input
+          type="file"
+          id="file-input"
+          class="dropzone-overlay-input"
+          multiple
+          aria-label="GPX- oder ZIP-Dateien auswählen"
+        />
+        <div class="dropzone-icon">⬆</div>
+        <p class="dropzone-main-text">
+          GPX- oder ZIP-Dateien hier ablegen oder <span class="dropzone-link">durchsuchen</span>
         </p>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Alle Dateifilter deaktiviert für maximale Android-Kompatibilität – mehrere Dateien gleichzeitig möglich
+        <p class="dropzone-sub-text">
+          Ohne Dateifilter für volle Android-Kompatibilität – mehrere Dateien gleichzeitig möglich
         </p>
       </div>
 
-      <!-- Direkter GPX-XML Text-Import (Copy & Paste Fallback für WebViews / Android) -->
-      <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <button id="btnTogglePasteXml" type="button" class="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 transition cursor-pointer">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <span>GPX-XML-Code direkt einfügen (Copy &amp; Paste)</span>
-            <svg id="pasteXmlChevron" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          <span class="text-[11px] text-slate-400">Ideal, falls die mobile App Datei-Uploads blockiert</span>
-        </div>
-
-        <div id="pasteXmlPanel" class="hidden mt-3 space-y-3 bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <label for="gpxPasteTextarea" class="text-xs font-medium text-slate-700 dark:text-slate-300">
-              Kompletten Inhalt einer <code class="px-1 rounded bg-slate-200/70 dark:bg-slate-800">.gpx</code>-Datei hier einfügen:
-            </label>
-            <div class="flex items-center gap-2">
-              <button id="btnPasteFromClipboard" type="button" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 transition cursor-pointer">
-                <svg class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                </svg>
-                <span>Aus Zwischenablage einfügen</span>
-              </button>
-              <button id="btnClearPasteXml" type="button" class="px-2.5 py-1.5 rounded-lg text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer">
-                Leeren
-              </button>
-            </div>
-          </div>
-
-          <textarea id="gpxPasteTextarea" rows="5" placeholder="<?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?>&#10;<gpx version=&quot;1.1&quot; ...>&#10;  <wpt lat=&quot;48.681800&quot; lon=&quot;9.234700&quot;>&#10;    <name>GCAT8R1</name>&#10;  </wpt>&#10;</gpx>" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 font-mono text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
-
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <input id="gpxPasteSourceName" type="text" value="Zwischenablage_Import" placeholder="Ebenen-/Quellname (optional)" class="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            <button id="btnImportPastedXml" type="button" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold shadow-xs transition cursor-pointer">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span>GPX-Text verarbeiten</span>
-            </button>
+      <div class="paste-section">
+        <button type="button" class="paste-toggle" id="btn-toggle-paste">
+          <span>📋 GPX-XML-Code direkt einfügen (Copy &amp; Paste)</span>
+          <span id="paste-arrow">▼</span>
+        </button>
+        <div class="paste-box" id="paste-box">
+          <textarea
+            id="xml-textarea"
+            class="xml-input"
+            placeholder="<?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?>&#10;<gpx version=&quot;1.1&quot; ...>&#10;  <wpt lat=&quot;48.6818&quot; lon=&quot;9.2347&quot;>...</wpt>&#10;</gpx>"
+          ></textarea>
+          <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-primary btn-sm" id="btn-parse-paste">GPX-Text verarbeiten</button>
+            <button type="button" class="btn btn-sm" id="btn-paste-clipboard">Aus Zwischenablage einfügen</button>
           </div>
         </div>
       </div>
 
-      <!-- Fortschrittsbalken & Live-Aktivitäts-Log (Konsole) -->
-      <div id="activityStatusBox" class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <div class="flex items-center gap-2 min-w-0">
-            <span id="progressStatusDot" class="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0"></span>
-            <span id="progressStepLabel" class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
-              Bereit – warte auf GPX-Datei, ZIP-Archiv oder eingefügten XML-Code
-            </span>
+      <div class="status-bar">
+        <div class="status-row">
+          <div class="status-indicator">
+            <span class="dot" id="status-dot"></span>
+            <span id="status-text">Bereit – wähle eine Datei aus oder lade die Demo-GPX.</span>
           </div>
-          <div class="flex items-center gap-3 shrink-0">
-            <span id="progressPercentLabel" class="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">0 %</span>
-            <button id="btnToggleLogPanel" type="button" class="text-xs font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 underline cursor-pointer">
-              Log ein-/ausblenden
-            </button>
+          <div>
+            <span id="progress-pct" style="color:var(--primary); margin-right:8px;">0 %</span>
+            <button type="button" class="btn btn-sm" id="btn-toggle-log">Log ein-/ausblenden</button>
           </div>
         </div>
-
-        <!-- Visueller Fortschrittsbalken -->
-        <div class="w-full h-3 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden p-0.5">
-          <div id="progressBarFill" class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-150 ease-out" style="width: 0%;"></div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-fill"></div>
         </div>
 
-        <!-- Live-Log-Konsole -->
-        <div id="liveLogWrapper" class="rounded-xl border border-slate-800 bg-slate-950 text-slate-200 overflow-hidden shadow-inner">
-          <div class="px-3 py-1.5 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
-            <span class="font-mono font-semibold text-slate-300 flex items-center gap-1.5">
-              <span>Live-Aktivitätsprotokoll &amp; Diagnose</span>
-              <span id="logEntryCount" class="px-1.5 py-0.2 rounded bg-slate-800 text-slate-300">1</span>
-            </span>
-            <div class="flex items-center gap-2">
-              <input id="logFilterInput" type="text" placeholder="Log filtern..." class="rounded bg-slate-800 border border-slate-700 px-2 py-0.5 text-[11px] text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 w-24 sm:w-32" />
-              <button id="btnCopyLog" type="button" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer">
-                Log kopieren
-              </button>
-              <button id="btnClearLog" type="button" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer">
-                Leeren
-              </button>
+        <div class="log-panel" id="log-panel">
+          <div class="log-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <strong>Live-Aktivitätsprotokoll</strong>
+              <span class="log-badge" id="log-count">0</span>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button type="button" class="btn btn-sm" id="btn-copy-log" style="background:#1e293b; color:#fff; border-color:#334155;">Log kopieren</button>
+              <button type="button" class="btn btn-sm" id="btn-clear-log" style="background:#1e293b; color:#fff; border-color:#334155;">Leeren</button>
             </div>
           </div>
-          <div id="liveLogConsole" class="p-3 max-h-56 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-1">
-            <!-- Log-Einträge werden per JS eingefügt -->
-          </div>
+          <div class="log-entries" id="log-entries"></div>
         </div>
       </div>
     </section>
 
-    <!-- Workspace (sichtbar sobald mindestens 1 Wegpunkt geladen wurde) -->
-    <div id="workspaceSection" class="hidden space-y-6">
+    <!-- SCHRITT 2: EBENEN & SYMBOLE KONFIGURIEREN -->
+    <section class="card" id="config-section">
+      <div class="step-header">
+        <span class="step-badge">2</span>
+        <h2 class="step-title">Ebenen, Symbole &amp; Fund-Markierung anpassen</h2>
+      </div>
+      <p class="step-desc">Bestimme vor dem Export, wie deine Wegpunkte in OsmAnd-Favoritengruppen (<code>&lt;type&gt;</code>), Farben und Markerformen aufgeteilt werden.</p>
 
-      <!-- KPI Summary Cards -->
-      <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
-          <div class="text-xs font-medium text-slate-500 dark:text-slate-400">Geladene Wegpunkte</div>
-          <div class="mt-1 flex items-baseline justify-between">
-            <span id="statTotalWpts" class="text-2xl font-bold text-slate-900 dark:text-white">0</span>
-            <span id="statSelectedWpts" class="text-xs font-medium text-emerald-600 dark:text-emerald-400">0 aktiv</span>
-          </div>
+      <div class="options-grid">
+        <div class="field-group">
+          <label for="group-mode">Ebenen-Gruppierung nach</label>
+          <select id="group-mode">
+            <option value="cacheType" selected>Geocache-Typ (Tradi, Multi, Mystery, …)</option>
+            <option value="existingType">Vorhandenem GPX-&lt;type&gt; / Status</option>
+            <option value="sourceFile">Quelldatei (Dateiname)</option>
+            <option value="single">Alle in einer gemeinsamen Ebene</option>
+          </select>
         </div>
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
-          <div class="text-xs font-medium text-slate-500 dark:text-slate-400">OsmAnd-Ebenen (&lt;type&gt;)</div>
-          <div class="mt-1 flex items-baseline justify-between">
-            <span id="statLayerCount" class="text-2xl font-bold text-slate-900 dark:text-white">0</span>
-            <span class="text-xs text-slate-400">Gruppen</span>
-          </div>
-        </div>
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
-          <div class="text-xs font-medium text-slate-500 dark:text-slate-400">Quell-Dateien</div>
-          <div class="mt-1 flex items-baseline justify-between">
-            <span id="statFileCount" class="text-2xl font-bold text-slate-900 dark:text-white">0</span>
-            <span class="text-xs text-slate-400">eingelesen</span>
-          </div>
-        </div>
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
-          <div class="text-xs font-medium text-slate-500 dark:text-slate-400">OsmAnd Extensions</div>
-          <div class="mt-1 flex items-baseline justify-between">
-            <span id="statOsmandExt" class="text-lg font-bold text-emerald-600 dark:text-emerald-400">Aktiv</span>
-            <span class="text-xs text-slate-400">Farbe &amp; Icon</span>
-          </div>
-        </div>
-      </section>
 
-      <!-- Step 2: Verarbeitungs-Optionen & Ebenen-Mapping -->
-      <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="field-group">
+          <label for="name-format">Wegpunkt-Name in OsmAnd</label>
+          <select id="name-format">
+            <option value="code_name" selected>GC-Code – Cache-Name</option>
+            <option value="name_only">Nur Cache-Name</option>
+            <option value="code_dt_name">GC-Code [D/T] – Cache-Name</option>
+          </select>
+        </div>
 
-        <!-- Linke Spalte: Globale Regeln (5 Cols) -->
-        <div class="lg:col-span-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 sm:p-6 space-y-5">
-          <h2 class="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-            <span class="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-center">2</span>
-            Verarbeitungs- &amp; Anreicherungs-Optionen
-          </h2>
+        <div class="field-group">
+          <label for="layer-prefix">Ebenen-Präfix (optional)</label>
+          <input type="text" id="layer-prefix" value="Geocaching - " placeholder="z. B. GC - " />
+        </div>
+      </div>
 
-          <!-- Gruppierungsmodus -->
+      <div class="found-box">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div id="found-pin-preview" class="osmand-pin circle" style="background:#16a34a;">☺</div>
           <div>
-            <label for="optGroupMode" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-              Ebenen-Gruppierung (&lt;type&gt;)
-            </label>
-            <select id="optGroupMode" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="cacheType">Nach Geocache-Typ (Traditional, Multi, Mystery, ...)</option>
-              <option value="status">Nach Status (Gelöst / Aktiv, Später, Archiviert)</option>
-              <option value="existingOrFile">Nach bestehendem &lt;type&gt;-Tag oder Dateiname</option>
-              <option value="single">Alle in eine gemeinsame benutzerdefinierte Ebene</option>
-            </select>
-          </div>
-
-          <!-- Benutzerdefinierter Ebenenname (nur sichtbar bei "single") -->
-          <div id="customSingleLayerWrap" class="hidden">
-            <label for="optSingleLayerName" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-              Name der gemeinsamen Ebene
-            </label>
-            <input id="optSingleLayerName" type="text" value="Geocaching Tour" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-          </div>
-
-          <!-- DEDICATED SECTION: Gefundene Caches (Found) -->
-          <div class="p-3.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 space-y-3">
-            <div class="flex items-start justify-between gap-2">
-              <label class="flex items-start gap-2.5 cursor-pointer select-none">
-                <input id="optFoundEnable" type="checkbox" checked class="mt-0.5 w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300 dark:border-amber-700" />
-                <div>
-                  <span class="text-xs sm:text-sm font-semibold text-amber-950 dark:text-amber-200 block">
-                    Gefundene Caches extra markieren
-                  </span>
-                  <span class="text-[11px] text-amber-800/80 dark:text-amber-300/80 block">
-                    Erkennt <code class="px-1 rounded bg-amber-100/80 dark:bg-amber-900/50">Geocache Found</code>, Logs &amp; manuelle Haken
-                  </span>
-                </div>
-              </label>
-              <div id="foundLivePinPreview" class="shrink-0" title="Live-Vorschau für gefundene Caches"></div>
-            </div>
-
-            <div id="foundOptionsBody" class="space-y-2.5 pt-2 border-t border-amber-200/70 dark:border-amber-800/50">
-              <div>
-                <label for="optFoundMode" class="block text-[11px] font-medium text-amber-900 dark:text-amber-200 mb-1">
-                  Behandlung gefundener Caches:
-                </label>
-                <select id="optFoundMode" class="w-full rounded-lg border border-amber-300/80 dark:border-amber-800 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500">
-                  <option value="separate_layer">Eigene OsmAnd-Ebene („Gefunden“) + Smiley-Pin</option>
-                  <option value="keep_layer_style">In ursprünglicher Ebene belassen, nur Symbol &amp; Farbe ändern</option>
-                  <option value="exclude">Gefundene beim Export komplett ausschließen</option>
-                </select>
-              </div>
-
-              <div id="foundLayerNameWrap">
-                <label for="optFoundLayerName" class="block text-[11px] font-medium text-amber-900 dark:text-amber-200 mb-1">
-                  Ziel-Ebene für Gefundene:
-                </label>
-                <input id="optFoundLayerName" type="text" value="Geocaching - Gefunden" class="w-full rounded-lg border border-amber-300/80 dark:border-amber-800 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
-              </div>
-
-              <div class="grid grid-cols-12 gap-2 items-end">
-                <div class="col-span-5">
-                  <label class="block text-[11px] font-medium text-amber-900 dark:text-amber-200 mb-1">Symbol</label>
-                  <select id="optFoundSym" class="w-full rounded-lg border border-amber-300/80 dark:border-amber-800 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs text-slate-900 dark:text-white">
-                    <option value="Geocache Found" selected>Smiley (Found)</option>
-                    <option value="Star">Stern (Star)</option>
-                    <option value="Checkmark">Häkchen (Check)</option>
-                    <option value="Geocache">Geocache</option>
-                  </select>
-                </div>
-                <div class="col-span-4">
-                  <label class="block text-[11px] font-medium text-amber-900 dark:text-amber-200 mb-1">Form</label>
-                  <select id="optFoundShape" class="w-full rounded-lg border border-amber-300/80 dark:border-amber-800 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs text-slate-900 dark:text-white">
-                    <option value="circle" selected>Kreis</option>
-                    <option value="octagon">Achteck</option>
-                    <option value="square">Quadrat</option>
-                  </select>
-                </div>
-                <div class="col-span-3">
-                  <label class="block text-[11px] font-medium text-amber-900 dark:text-amber-200 mb-1">Farbe</label>
-                  <input id="optFoundColor" type="color" value="#f59e0b" class="w-full h-[30px] rounded-lg border border-amber-300/80 dark:border-amber-800 bg-transparent cursor-pointer" />
-                </div>
-              </div>
-
-              <div>
-                <label for="optFoundPrefix" class="block text-[11px] font-medium text-amber-900 dark:text-amber-200 mb-1">
-                  Optionales Namens-Präfix für Gefundene:
-                </label>
-                <input id="optFoundPrefix" type="text" value="✓ " placeholder="z. B. ✓ oder [F] " class="w-full rounded-lg border border-amber-300/80 dark:border-amber-800 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
-              </div>
-            </div>
-          </div>
-
-          <!-- Ebenen-Präfix -->
-          <div class="pt-1 border-t border-slate-100 dark:border-slate-800">
-            <label class="flex items-center gap-2.5 cursor-pointer select-none mb-2">
-              <input id="optUsePrefix" type="checkbox" checked class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-600" />
-              <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Ebenen-Präfix voranstellen</span>
-            </label>
-            <input id="optPrefixText" type="text" value="Geocaching - " placeholder="z. B. Geocaching - " class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-          </div>
-
-          <!-- Symbol-Modus -->
-          <div class="pt-1 border-t border-slate-100 dark:border-slate-800">
-            <label for="optSymbolMode" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-              Symbol-Zuweisung (&lt;sym&gt;)
-            </label>
-            <select id="optSymbolMode" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="auto">Automatisch passend zur Kategorie / Ebene</option>
-              <option value="fixed">Festes Standard-Symbol für alle Punkte</option>
-            </select>
-
-            <div id="fixedSymbolWrap" class="hidden mt-2">
-              <select id="optFixedSymbol" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white">
-                <option value="Geocache">Geocache</option>
-                <option value="Geocache Found">Geocache Found (Smiley)</option>
-                <option value="Puzzle">Puzzle (Mystery)</option>
-                <option value="Flag">Flag (Multi / Stage)</option>
-                <option value="Parking Area">Parking Area (Parkplatz)</option>
-                <option value="Information">Information (Hinweis)</option>
-                <option value="Waypoint">Waypoint</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Namensformat -->
-          <div class="pt-1 border-t border-slate-100 dark:border-slate-800">
-            <label for="optNameFormat" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-              Wegpunkt-Namensformat (&lt;name&gt;)
-            </label>
-            <select id="optNameFormat" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="code_name">GC-Code – Name (z. B. GCAT8R1 – Das pOny HoTte)</option>
-              <option value="name_only">Nur Name (z. B. Das pOny HoTte)</option>
-              <option value="name_code">Name (GC-Code) (z. B. Das pOny HoTte (GCAT8R1))</option>
-              <option value="original">Originalen &lt;name&gt;-Tag unverändert behalten</option>
-            </select>
-          </div>
-
-          <!-- Weitere Checkbox-Optionen -->
-          <div class="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
-            <label class="flex items-start gap-2.5 cursor-pointer select-none">
-              <input id="optOsmandExtensions" type="checkbox" checked class="mt-0.5 w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-600" />
-              <span class="text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-                <strong>OsmAnd XML-Extensions</strong> (<code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">color</code>, <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">icon</code> &amp; <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">background</code>) für Farben, Icons &amp; Formen mitschreiben
-              </span>
-            </label>
-
-            <label class="flex items-start gap-2.5 cursor-pointer select-none">
-              <input id="optEnrichDesc" type="checkbox" checked class="mt-0.5 w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-600" />
-              <span class="text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-                <strong>Beschreibung anreichern:</strong> D/T-Wertung, Behältergröße, Cache-Typ und Hinweise strukturiert in <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">&lt;desc&gt;</code> einfügen
-              </span>
-            </label>
-
-            <div class="pt-1">
-              <label for="optArchivedHandling" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                Umgang mit archivierten / deaktivierten Caches:
-              </label>
-              <select id="optArchivedHandling" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white">
-                <option value="separate">In eigene Ebene „Archiv“ verschieben</option>
-                <option value="keep">Normal nach gewähltem Modus einsortieren</option>
-                <option value="exclude">Beim Export komplett ausschließen</option>
-              </select>
-            </div>
-          </div>
-
-          <button id="btnReapplyRules" type="button" class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs sm:text-sm font-medium transition flex items-center justify-center gap-2 cursor-pointer">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            <span>Regeln auf alle Punkte neu anwenden</span>
-          </button>
-        </div>
-
-        <!-- Rechte Spalte: Editierbare Ebenen- & Symbol-Mapping-Tabelle (7 Cols) -->
-        <div class="lg:col-span-7 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 sm:p-6 flex flex-col">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-            <div>
-              <h2 class="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                <span class="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-center">3</span>
-                Ebenen-Mapping, Symbole, Formen &amp; Farben
-              </h2>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                OsmAnd unterstützt drei Marker-Formen (<code class="text-xs">Kreis</code>, <code class="text-xs">Achteck</code>, <code class="text-xs">Quadrat</code>). Links siehst du die exakte Live-Vorschau des Pins.
-              </p>
-            </div>
-          </div>
-
-          <div class="overflow-x-auto flex-1">
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  <th class="py-2.5 pr-2 w-10 text-center">Pin</th>
-                  <th class="py-2.5 px-2">Kategorie</th>
-                  <th class="py-2.5 px-2">Ziel-Ebene (&lt;type&gt;)</th>
-                  <th class="py-2.5 px-2">Symbol (&lt;sym&gt;)</th>
-                  <th class="py-2.5 px-2">Form</th>
-                  <th class="py-2.5 px-2 text-center">Farbe</th>
-                  <th class="py-2.5 pl-2 text-right">Anz.</th>
-                </tr>
-              </thead>
-              <tbody id="categoryMappingBody" class="divide-y divide-slate-100 dark:divide-slate-800/80 text-sm">
-                <!-- Dynamisch befüllt -->
-              </tbody>
-            </table>
-          </div>
-
-          <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <span>Tipp: Nicht nur Kreise – nutze <strong>Achteck</strong> (z. B. für Mysteries/Archiv) oder <strong>Quadrat</strong> (z. B. für Parkplätze/Stages) zur schnellen Unterscheidung auf der Karte.</span>
+            <div style="font-weight:700; font-size:13.5px;">Gefundene Caches (<code>Geocache Found</code>) extra markieren</div>
+            <div style="font-size:12px; color:#78350f;">Erkennt gefundene Caches automatisch aus GPX-Symbol oder Groundspeak-Logs.</div>
           </div>
         </div>
-      </section>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+          <select id="found-mode">
+            <option value="separate" selected>Eigene Ebene („Gefunden“) + ✓ Präfix</option>
+            <option value="prefix_only">In Original-Ebene lassen, aber mit ✓ &amp; Grün markieren</option>
+            <option value="exclude">Gefundene beim Export weglassen</option>
+          </select>
+          <select id="found-shape">
+            <option value="circle" selected>Kreis</option>
+            <option value="octagon">Achteck</option>
+            <option value="square">Quadrat</option>
+          </select>
+          <input type="color" id="found-color" value="#16a34a" title="Farbe für Gefundene" />
+        </div>
+      </div>
 
-      <!-- Step 3.5: Einklappbare Karten-Vorschau (Leaflet + OSM) -->
-      <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-        <button id="btnToggleMap" type="button" class="w-full px-5 sm:px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition cursor-pointer">
-          <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-xl bg-sky-100 dark:bg-sky-900/50 text-sky-600 dark:text-sky-400 flex items-center justify-center">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-            </div>
-            <div>
-              <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Interaktive Karten-Vorschau (OpenStreetMap)</h3>
-              <p class="text-xs text-slate-500 dark:text-slate-400">Zeigt alle aktiven Wegpunkte farblich nach ihren OsmAnd-Ebenen</p>
-            </div>
-          </div>
-          <span id="mapToggleText" class="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-            <span>Karte einblenden</span>
-            <svg id="mapChevron" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </span>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Vorschau</th>
+              <th>Erkannte Kategorie</th>
+              <th>Anzahl</th>
+              <th>OsmAnd-Ebene (<code>&lt;type&gt;</code>)</th>
+              <th>Form</th>
+              <th>Farbe</th>
+              <th>Icon</th>
+            </tr>
+          </thead>
+          <tbody id="mapping-tbody">
+            <tr>
+              <td colspan="7" style="text-align:center; color:var(--muted); padding:18px;">
+                Noch keine Daten geladen. Lade oben eine GPX/ZIP-Datei oder klicke auf „Demo-GPX laden“.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SCHRITT 3: WEGPUNKTE & EXPORT -->
+    <section class="card">
+      <div class="step-header">
+        <span class="step-badge">3</span>
+        <h2 class="step-title">Wegpunkt-Übersicht &amp; OsmAnd-Export</h2>
+      </div>
+      <div class="stats-bar" id="stats-bar">
+        <span class="stat-pill">0 Wegpunkte</span>
+        <span class="stat-pill">0 Ebenen</span>
+        <span class="stat-pill">0 Gefunden</span>
+      </div>
+
+      <div class="table-wrap" style="max-height: 340px; overflow-y: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Pin</th>
+              <th>Code &amp; Name</th>
+              <th>Koordinaten</th>
+              <th>Ziel-Ebene in OsmAnd</th>
+              <th>Fund-Status</th>
+            </tr>
+          </thead>
+          <tbody id="waypoints-tbody">
+            <tr>
+              <td colspan="5" style="text-align:center; color:var(--muted); padding:18px;">
+                Keine Wegpunkte vorhanden.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="export-actions">
+        <button type="button" class="btn btn-primary" id="btn-export-gpx">
+          ⬇ Kombinierte GPX für OsmAnd herunterladen (Favoriten-Ebenen)
         </button>
-
-        <div id="mapWrapper" class="hidden border-t border-slate-200 dark:border-slate-800 relative">
-          <div id="mapContainer" class="w-full h-80 sm:h-96 bg-slate-100 dark:bg-slate-800"></div>
-          <div id="mapOfflineFallback" class="hidden p-6 text-center text-sm text-slate-500 dark:text-slate-400">
-            Kartenkacheln konnten nicht geladen werden (Offline-Modus). Deine Koordinaten und der GPX-Export funktionieren trotzdem vollständig.
-          </div>
-        </div>
-      </section>
-
-      <!-- Step 4: Einzelpunkt-Vorschau & Filter -->
-      <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 sm:p-6">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-          <div>
-            <h2 class="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <span class="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-center">4</span>
-              Wegpunkte prüfen &amp; individuell anpassen
-            </h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Hier kannst du einzelne Punkte abwählen oder Ebene, Symbol und Namen gezielt für einzelne Wegpunkte überschreiben.
-            </p>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-2">
-            <!-- Filter nach Ebene -->
-            <select id="filterLayer" class="rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="ALL">Alle Ebenen anzeigen</option>
-            </select>
-
-            <!-- Suchfeld -->
-            <div class="relative flex-1 sm:flex-initial">
-              <input id="filterSearch" type="text" placeholder="GC-Code, Name, Hinweis..." class="w-full sm:w-56 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-8 pr-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div class="overflow-x-auto max-h-[28rem] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800">
-          <table class="w-full text-left border-collapse">
-            <thead class="bg-slate-50 dark:bg-slate-800/80 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              <tr>
-                <th class="py-3 pl-3 pr-2 w-10">
-                  <input id="checkAllVisible" type="checkbox" checked title="Alle sichtbaren an-/abwählen" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-600 cursor-pointer" />
-                </th>
-                <th class="py-3 px-2 w-12 text-center">Pin</th>
-                <th class="py-3 px-2 min-w-[200px]">Wegpunkt-Name (&lt;name&gt;)</th>
-                <th class="py-3 px-2 w-24 text-center">Status</th>
-                <th class="py-3 px-2 min-w-[175px]">OsmAnd-Ebene (&lt;type&gt;)</th>
-                <th class="py-3 px-2 min-w-[135px]">Symbol (&lt;sym&gt;)</th>
-                <th class="py-3 px-2">Koordinaten</th>
-                <th class="py-3 pl-2 pr-3">Details / Hinweise</th>
-              </tr>
-            </thead>
-            <tbody id="waypointsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs sm:text-sm">
-              <!-- Dynamisch befüllt -->
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- Step 5: Export Bar -->
-      <section class="bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 rounded-2xl p-5 sm:p-6 text-white shadow-md">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <h2 class="text-base sm:text-lg font-bold flex items-center gap-2">
-              <span class="w-6 h-6 rounded-full bg-white/20 text-white text-xs font-bold flex items-center justify-center">5</span>
-              Fertige Datei für OsmAnd exportieren
-            </h2>
-            <p class="text-xs sm:text-sm text-emerald-100 mt-1">
-              Für Favoriten-Gruppen nutze die <strong>kombinierte GPX-Datei</strong> (in OsmAnd: <em>Als Favoriten importieren</em>). Für separate Track-Overlays nutze das <strong>ZIP-Archiv</strong>.
-            </p>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-3">
-            <button id="btnPreviewXml" type="button" class="px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs sm:text-sm font-medium transition flex items-center gap-2 cursor-pointer">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-              </svg>
-              <span>XML-Vorschau</span>
-            </button>
-
-            <button id="btnExportZip" type="button" class="px-4 py-3 rounded-xl bg-slate-900/80 hover:bg-slate-900 border border-white/15 text-white text-xs sm:text-sm font-medium transition flex items-center gap-2 cursor-pointer">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-              </svg>
-              <span>ZIP (GPX pro Ebene)</span>
-            </button>
-
-            <button id="btnExportCombinedGpx" type="button" class="px-5 py-3 rounded-xl bg-white text-emerald-950 hover:bg-emerald-50 font-semibold text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
-              <svg class="w-4 h-4 text-emerald-700" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              <span>Kombinierte GPX für OsmAnd</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-    </div>
+        <button type="button" class="btn" id="btn-export-zip">
+          📦 Als ZIP mit einzelnen GPX-Dateien je Ebene exportieren
+        </button>
+      </div>
+    </section>
   </main>
 
-  <!-- XML Preview Modal -->
-  <div id="xmlModal" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-4xl w-full max-h-[85vh] flex flex-col shadow-2xl">
-      <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-        <div>
-          <h3 class="text-base font-bold text-slate-900 dark:text-white">Generierte OsmAnd GPX 1.1 XML-Vorschau</h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Enthält alle aktiven Wegpunkte inkl. &lt;type&gt;, &lt;sym&gt; und OsmAnd-Extensions</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <button id="btnCopyXml" type="button" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition cursor-pointer">
-            In Zwischenablage kopieren
-          </button>
-          <button id="btnCloseXmlModal" type="button" class="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-      <div class="p-4 overflow-auto flex-1 bg-slate-950 text-emerald-300 font-mono text-xs leading-relaxed">
-        <pre id="xmlPreviewContent" class="whitespace-pre-wrap break-all"></pre>
-      </div>
-    </div>
-  </div>
-
-  <!-- Application Logic -->
   <script>
-    (function () {
-      'use strict';
+    (function() {
+      "use strict";
 
-      // =========================================================================
-      // 0. PROGRESS & LIVE ACTIVITY LOG SYSTEM + GLOBAL ERROR CATCHING
-      // =========================================================================
-      let logCounter = 0;
+      // ---------- LOGGING & STATUS ----------
+      var logEntriesEl = document.getElementById("log-entries");
+      var logCountEl = document.getElementById("log-count");
+      var statusTextEl = document.getElementById("status-text");
+      var statusDotEl = document.getElementById("status-dot");
+      var progressFillEl = document.getElementById("progress-fill");
+      var progressPctEl = document.getElementById("progress-pct");
+      var logCounter = 0;
 
-      function formatTimestamp() {
-        const now = new Date();
-        const hh = String(now.getHours()).padStart(2, '0');
-        const mm = String(now.getMinutes()).padStart(2, '0');
-        const ss = String(now.getSeconds()).padStart(2, '0');
-        const ms = String(now.getMilliseconds()).padStart(3, '0');
-        return `${hh}:${mm}:${ss}.${ms}`;
+      function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+      function pad3(n) { return n < 10 ? "00" + n : (n < 100 ? "0" + n : "" + n); }
+
+      function nowStamp() {
+        var d = new Date();
+        return pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds()) + "." + pad3(d.getMilliseconds());
       }
 
-      function appendLog(message, level = 'info') {
-        const consoleEl = document.getElementById('liveLogConsole');
-        const countEl = document.getElementById('logEntryCount');
-        const filterInput = document.getElementById('logFilterInput');
-        if (!consoleEl) return;
-
+      window.appLog = function(level, message) {
         logCounter++;
-        if (countEl) countEl.textContent = String(logCounter);
-
-        const row = document.createElement('div');
-        let textClass = 'text-slate-300';
-        let badgeClass = 'bg-slate-800 text-slate-300 border-slate-700';
-        let badge = 'INFO';
-
-        if (level === 'step') {
-          textClass = 'text-sky-300';
-          badgeClass = 'bg-sky-950 text-sky-300 border-sky-800';
-          badge = 'STEP';
-        } else if (level === 'zip') {
-          textClass = 'text-purple-300';
-          badgeClass = 'bg-purple-950 text-purple-300 border-purple-800';
-          badge = 'ZIP ';
-        } else if (level === 'success') {
-          textClass = 'text-emerald-400';
-          badgeClass = 'bg-emerald-950 text-emerald-300 border-emerald-800';
-          badge = 'OK  ';
-        } else if (level === 'warn') {
-          textClass = 'text-amber-300';
-          badgeClass = 'bg-amber-950 text-amber-300 border-amber-800';
-          badge = 'WARN';
-        } else if (level === 'error') {
-          textClass = 'text-rose-300 font-semibold';
-          badgeClass = 'bg-rose-950 text-rose-300 border-rose-700 font-bold';
-          badge = 'ERR ';
+        if (logCountEl) logCountEl.textContent = String(logCounter);
+        if (logEntriesEl) {
+          var div = document.createElement("div");
+          div.className = "log-line " + level;
+          div.textContent = "[" + nowStamp() + "] [" + level + "] " + message;
+          logEntriesEl.appendChild(div);
+          logEntriesEl.scrollTop = logEntriesEl.scrollHeight;
         }
-
-        const fullLine = `[${formatTimestamp()}] [${badge}] ${message}`;
-        row.className = `${textClass} break-words flex items-start gap-1.5`;
-        row.dataset.rawText = fullLine.toLowerCase();
-        row.innerHTML = `<span class="text-slate-500 shrink-0">[${formatTimestamp()}]</span><span class="px-1 rounded border text-[10px] shrink-0 ${badgeClass}">${badge.trim()}</span><span class="break-all">${escapeXml(message)}</span>`;
-
-        const filterQuery = filterInput ? filterInput.value.trim().toLowerCase() : '';
-        if (filterQuery && !row.dataset.rawText.includes(filterQuery)) {
-          row.classList.add('hidden');
-        }
-
-        consoleEl.appendChild(row);
-        consoleEl.scrollTop = consoleEl.scrollHeight;
-      }
-
-      function setProgress(percent, stepText, statusState = 'running') {
-        const clamped = Math.max(0, Math.min(100, Math.round(percent)));
-        const bar = document.getElementById('progressBarFill');
-        const pctLabel = document.getElementById('progressPercentLabel');
-        const stepLabel = document.getElementById('progressStepLabel');
-        const dot = document.getElementById('progressStatusDot');
-
-        if (bar) {
-          bar.style.width = `${clamped}%`;
-          bar.className = statusState === 'error'
-            ? 'h-full rounded-full bg-rose-500 transition-all duration-150 ease-out'
-            : 'h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-150 ease-out';
-        }
-        if (pctLabel) pctLabel.textContent = `${clamped} %`;
-        if (stepLabel && stepText) stepLabel.textContent = stepText;
-        if (dot) {
-          if (statusState === 'running') {
-            dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping shrink-0';
-          } else if (statusState === 'done') {
-            dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0';
-          } else if (statusState === 'error') {
-            dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0';
-          } else {
-            dot.className = 'w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0';
-          }
-        }
-      }
-
-      function yieldToBrowser() {
-        return new Promise((resolve) => setTimeout(resolve, 0));
-      }
-
-      function formatBytes(bytes) {
-        if (!bytes || bytes < 1024) return `${bytes || 0} B`;
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-        return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-      }
-
-      function bytesToHexDump(uint8Arr, maxLen = 16) {
-        const len = Math.min(uint8Arr.length, maxLen);
-        const hex = [];
-        for (let i = 0; i < len; i++) {
-          hex.push(uint8Arr[i].toString(16).padStart(2, '0'));
-        }
-        return hex.join(' ');
-      }
-
-      window.onerror = function (message, source, lineno, colno, error) {
-        const stack = error && error.stack ? ` | Stack: ${error.stack.split('\n')[0]}` : '';
-        const msg = `Unerwarteter JS-Fehler (${lineno}:${colno}): ${message}${stack}`;
-        appendLog(msg, 'error');
-        setProgress(100, `Fehler: ${message}`, 'error');
-        return false;
       };
 
-      window.addEventListener('unhandledrejection', (event) => {
-        const reasonObj = event ? event.reason : null;
-        const errName = reasonObj && reasonObj.name ? `${reasonObj.name}: ` : '';
-        const errMsg = reasonObj && reasonObj.message ? reasonObj.message : String(reasonObj || 'Unbekannter Promise-Fehler');
-        appendLog(`Asynchroner Laufzeitfehler: ${errName}${errMsg}`, 'error');
-        setProgress(100, `Fehler: ${errName}${errMsg}`, 'error');
-      });
-
-      // =========================================================================
-      // 0B. PURE JAVASCRIPT ZIP READER & WRITER (100% OFFLINE / KEIN CDN)
-      // =========================================================================
-      function decodeZipFilename(bytes, isUtf8Flag) {
-        if (isUtf8Flag) {
-          return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+      function setStatus(state, text, pct) {
+        if (statusTextEl) statusTextEl.textContent = text;
+        if (statusDotEl) {
+          statusDotEl.className = "dot " + (state || "");
         }
-        try {
-          return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-        } catch (e) {
-          // Fallback auf CP437/Latin1 für ältere ZIP-Tools
-          let out = '';
-          for (let i = 0; i < bytes.length; i++) {
-            out += String.fromCharCode(bytes[i]);
-          }
-          return out;
+        if (typeof pct === "number") {
+          var clamped = Math.max(0, Math.min(100, Math.round(pct)));
+          if (progressFillEl) progressFillEl.style.width = clamped + "%";
+          if (progressPctEl) progressPctEl.textContent = clamped + " %";
         }
       }
 
-      async function inflateRawBytesAsync(compressedBytes) {
-        if (typeof DecompressionStream === 'undefined') {
-          throw new Error('Browser unterstützt kein natives DecompressionStream("deflate-raw"). Bitte entpacke die GPX-Datei vorher oder nutze Chrome/Android WebView >= 80.');
+      // Übernehme eventuelle frühe Fehler aus dem <head>
+      if (window.__earlyErrors && window.__earlyErrors.length > 0) {
+        for (var ei = 0; ei < window.__earlyErrors.length; ei++) {
+          window.appLog("ERROR", window.__earlyErrors[ei]);
         }
-        const ds = new DecompressionStream('deflate-raw');
-        const writer = ds.writable.getWriter();
-        const writePromise = writer.write(compressedBytes).then(() => writer.close());
-        const reader = ds.readable.getReader();
-        const chunks = [];
-        let totalLen = 0;
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          totalLen += value.byteLength;
-        }
-        await writePromise;
-
-        const result = new Uint8Array(totalLen);
-        let offset = 0;
-        for (let i = 0; i < chunks.length; i++) {
-          result.set(chunks[i], offset);
-          offset += chunks[i].byteLength;
-        }
-        return result;
       }
 
-      async function extractZipEntriesNativeAsync(arrayBuffer, zipFileName) {
-        const bytes = new Uint8Array(arrayBuffer);
-        const view = new DataView(arrayBuffer);
-        const len = bytes.length;
+      // ---------- KONFIGURATION & ICON-BIBLIOTHEK ----------
+      var ICON_OPTIONS = [
+        { id: "geocache", label: "Geocache (Box)", glyph: "📦", sym: "Geocache" },
+        { id: "geocache_found", label: "Gefunden (Smiley)", glyph: "☺", sym: "Geocache Found" },
+        { id: "puzzle", label: "Mystery (Fragezeichen)", glyph: "?", sym: "Puzzle" },
+        { id: "multi", label: "Multi (Stufen)", glyph: "❖", sym: "Multi-Cache" },
+        { id: "earth", label: "Earthcache (Globus)", glyph: "🌍", sym: "Earthcache" },
+        { id: "flag", label: "Wegpunkt / Stage (Flagge)", glyph: "⚑", sym: "Flag, Blue" },
+        { id: "parking", label: "Parkplatz (P)", glyph: "P", sym: "Parking Area" },
+        { id: "star", label: "Highlight / Favorit (Stern)", glyph: "★", sym: "Star" },
+        { id: "archive", label: "Archiv / Kreuz", glyph: "✕", sym: "Skull and Crossbones" }
+      ];
 
-        appendLog(`ZIP-Analyse gestartet für "${zipFileName}" (${formatBytes(len)}, Hex-Header: ${bytesToHexDump(bytes, 16)})`, 'zip');
+      var DEFAULT_CATEGORY_STYLES = {
+        "Traditional Cache": { layer: "Traditional", color: "#15803d", shape: "circle", icon: "geocache" },
+        "Multi-cache": { layer: "Multi-Cache", color: "#d97706", shape: "square", icon: "multi" },
+        "Unknown Cache": { layer: "Mystery-Cache", color: "#1d4ed8", shape: "octagon", icon: "puzzle" },
+        "Mystery Cache": { layer: "Mystery-Cache", color: "#1d4ed8", shape: "octagon", icon: "puzzle" },
+        "Earthcache": { layer: "Earthcache", color: "#0284c7", shape: "circle", icon: "earth" },
+        "Virtual Cache": { layer: "Virtual-Cache", color: "#7c3aed", shape: "circle", icon: "star" },
+        "Letterbox Hybrid": { layer: "Letterbox", color: "#0f766e", shape: "square", icon: "geocache" },
+        "Wherigo Cache": { layer: "Wherigo", color: "#4338ca", shape: "octagon", icon: "puzzle" },
+        "Event Cache": { layer: "Event", color: "#be123c", shape: "circle", icon: "star" },
+        "Parking Area": { layer: "Parkplätze", color: "#475569", shape: "square", icon: "parking" },
+        "Additional Waypoint": { layer: "Zusatzwegpunkte", color: "#64748b", shape: "square", icon: "flag" },
+        "Gelöst": { layer: "Gelöst", color: "#15803d", shape: "circle", icon: "star" },
+        "Später": { layer: "Später", color: "#d97706", shape: "octagon", icon: "puzzle" },
+        "Archiv": { layer: "Archiv", color: "#6b7280", shape: "octagon", icon: "archive" }
+      };
 
-        // Suche End of Central Directory Record (EOCD: 0x06054b50) rückwärts
-        const minEocdPos = Math.max(0, len - 65557);
-        let eocdOffset = -1;
-        for (let i = len - 22; i >= minEocdPos; i--) {
-          if (
-            bytes[i] === 0x50 &&
-            bytes[i + 1] === 0x4b &&
-            bytes[i + 2] === 0x05 &&
-            bytes[i + 3] === 0x06
-          ) {
-            eocdOffset = i;
-            break;
-          }
+      var FALLBACK_COLORS = ["#15803d", "#1d4ed8", "#d97706", "#7c3aed", "#0f766e", "#be123c", "#0369a1"];
+
+      var state = {
+        waypoints: [],
+        categoryConfigs: {}
+      };
+
+      function getIconObj(iconId) {
+        for (var i = 0; i < ICON_OPTIONS.length; i++) {
+          if (ICON_OPTIONS[i].id === iconId) return ICON_OPTIONS[i];
         }
-
-        if (eocdOffset === -1) {
-          throw new Error(`Kein gültiges ZIP-Inhaltsverzeichnis (EOCD 0x06054b50) in "${zipFileName}" gefunden. Datei evtl. unvollständig.`);
-        }
-
-        const totalEntries = view.getUint16(eocdOffset + 10, true);
-        const cdSize = view.getUint32(eocdOffset + 12, true);
-        const cdOffset = view.getUint32(eocdOffset + 16, true);
-
-        appendLog(`ZIP Central Directory gefunden bei Offset ${cdOffset} (${cdSize} Bytes), ${totalEntries} Einträge gemeldet.`, 'zip');
-
-        if (cdOffset + cdSize > len) {
-          throw new Error(`ZIP-Struktur beschädigt: Central Directory überschreitet Dateigröße (${cdOffset + cdSize} > ${len}).`);
-        }
-
-        const extractedFiles = [];
-        let ptr = cdOffset;
-
-        for (let idx = 0; idx < totalEntries; idx++) {
-          if (ptr + 46 > len) {
-            appendLog(`Unerwartetes Ende im Central Directory bei Eintrag ${idx + 1}.`, 'warn');
-            break;
-          }
-          const sig = view.getUint32(ptr, true);
-          if (sig !== 0x02014b50) {
-            throw new Error(`Ungültige Central-Directory-Signatur (0x${sig.toString(16)}) bei Eintrag ${idx + 1}.`);
-          }
-
-          const flags = view.getUint16(ptr + 8, true);
-          const method = view.getUint16(ptr + 10, true);
-          const compSize = view.getUint32(ptr + 20, true);
-          const uncompSize = view.getUint32(ptr + 24, true);
-          const nameLen = view.getUint16(ptr + 28, true);
-          const extraLen = view.getUint16(ptr + 30, true);
-          const commentLen = view.getUint16(ptr + 32, true);
-          const localHeaderOffset = view.getUint32(ptr + 42, true);
-
-          const isUtf8 = (flags & 0x0800) !== 0;
-          const isEncrypted = (flags & 0x0001) !== 0;
-          const nameBytes = bytes.subarray(ptr + 46, ptr + 46 + nameLen);
-          const entryName = decodeZipFilename(nameBytes, isUtf8);
-
-          ptr += 46 + nameLen + extraLen + commentLen;
-
-          if (entryName.endsWith('/')) {
-            appendLog(`ZIP-Eintrag [${idx + 1}/${totalEntries}]: Verzeichnis "${entryName}" übersprungen.`, 'zip');
-            continue;
-          }
-
-          const methodLabel = method === 0 ? 'Store (0)' : method === 8 ? 'Deflate (8)' : `Methode ${method}`;
-          appendLog(
-            `ZIP-Eintrag [${idx + 1}/${totalEntries}]: "${entryName}" | ${methodLabel} | Gepackt: ${formatBytes(compSize)} -> Entpackt: ${formatBytes(uncompSize)}`,
-            'zip'
-          );
-
-          if (isEncrypted) {
-            appendLog(`Eintrag "${entryName}" ist passwortgeschützt/verschlüsselt – wird übersprungen.`, 'warn');
-            continue;
-          }
-
-          const lowerName = entryName.toLowerCase();
-          if (!lowerName.endsWith('.gpx') && !lowerName.endsWith('.xml')) {
-            appendLog(`Eintrag "${entryName}" ist keine .gpx/.xml-Datei – übersprungen.`, 'info');
-            continue;
-          }
-
-          // Local File Header prüfen, um exakten Daten-Start zu ermitteln
-          if (localHeaderOffset + 30 > len) {
-            appendLog(`Local Header für "${entryName}" liegt außerhalb der Datei – übersprungen.`, 'error');
-            continue;
-          }
-          const localSig = view.getUint32(localHeaderOffset, true);
-          if (localSig !== 0x04034b50) {
-            appendLog(`Ungültiger Local File Header (0x${localSig.toString(16)}) für "${entryName}".`, 'error');
-            continue;
-          }
-          const localNameLen = view.getUint16(localHeaderOffset + 26, true);
-          const localExtraLen = view.getUint16(localHeaderOffset + 28, true);
-          const dataStart = localHeaderOffset + 30 + localNameLen + localExtraLen;
-          const dataEnd = dataStart + compSize;
-
-          if (dataEnd > len) {
-            appendLog(`Komprimierte Daten für "${entryName}" abgeschnitten (${dataEnd} > ${len}).`, 'error');
-            continue;
-          }
-
-          const compressedSlice = bytes.subarray(dataStart, dataEnd);
-          let uncompressedBytes;
-
-          if (method === 0) {
-            uncompressedBytes = compressedSlice;
-          } else if (method === 8) {
-            uncompressedBytes = await inflateRawBytesAsync(compressedSlice);
-          } else {
-            appendLog(`Nicht unterstützte ZIP-Kompressionsmethode (${method}) bei "${entryName}".`, 'error');
-            continue;
-          }
-
-          const xmlText = new TextDecoder('utf-8', { fatal: false }).decode(uncompressedBytes);
-          extractedFiles.push({
-            name: entryName.split('/').pop() || entryName,
-            text: xmlText,
-          });
-        }
-
-        return extractedFiles;
+        return ICON_OPTIONS[0];
       }
 
-      // Reiner JS-ZIP-Writer (Store-Modus, CRC32) für Export ohne CDN
-      const CRC32_TABLE = (() => {
-        const table = new Uint32Array(256);
-        for (let i = 0; i < 256; i++) {
-          let c = i;
-          for (let k = 0; k < 8; k++) {
-            c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
-          }
-          table[i] = c >>> 0;
+      // ---------- PURE-JS ZIP READER (STORE + DEFLATE-RAW) ----------
+      function toHex(uint8Arr, maxLen) {
+        var out = [];
+        var len = Math.min(uint8Arr.length, maxLen || 16);
+        for (var i = 0; i < len; i++) {
+          var h = uint8Arr[i].toString(16);
+          out.push(h.length < 2 ? "0" + h : h);
         }
-        return table;
-      })();
-
-      function computeCrc32(uint8Arr) {
-        let crc = 0xffffffff;
-        for (let i = 0; i < uint8Arr.length; i++) {
-          crc = CRC32_TABLE[(crc ^ uint8Arr[i]) & 0xff] ^ (crc >>> 8);
-        }
-        return (crc ^ 0xffffffff) >>> 0;
+        return out.join(" ");
       }
 
-      function createZipBlobNative(filesArray) {
-        // filesArray: [{ filename: string, content: string }]
-        const encoder = new TextEncoder();
-        const localChunks = [];
-        const centralChunks = [];
-        let offset = 0;
+      function readUint16LE(buf, off) {
+        return buf[off] | (buf[off + 1] << 8);
+      }
 
-        filesArray.forEach((f) => {
-          const nameBytes = encoder.encode(f.filename);
-          const dataBytes = encoder.encode(f.content);
-          const crc = computeCrc32(dataBytes);
-          const size = dataBytes.length;
+      function readUint32LE(buf, off) {
+        return (buf[off] | (buf[off + 1] << 8) | (buf[off + 2] << 16) | (buf[off + 3] << 24)) >>> 0;
+      }
 
-          // Local File Header (30 Bytes + name)
-          const localHeader = new ArrayBuffer(30 + nameBytes.length);
-          const lv = new DataView(localHeader);
+      async function inflateRawBytes(compressedBytes) {
+        if (typeof DecompressionStream !== "undefined") {
+          var ds = new DecompressionStream("deflate-raw");
+          var writer = ds.writable.getWriter();
+          writer.write(compressedBytes);
+          writer.close();
+          var resp = new Response(ds.readable);
+          var ab = await resp.arrayBuffer();
+          return new Uint8Array(ab);
+        }
+        throw new Error("Browser unterstützt DecompressionStream('deflate-raw') nicht.");
+      }
+
+      async function extractZipEntries(uint8) {
+        var entries = [];
+        var offset = 0;
+        var decoder = new TextDecoder("utf-8");
+
+        while (offset + 30 <= uint8.length) {
+          var sig = readUint32LE(uint8, offset);
+          if (sig !== 0x04034b50) {
+            break; // Ende der Local File Headers erreicht
+          }
+          var flags = readUint16LE(uint8, offset + 6);
+          var method = readUint16LE(uint8, offset + 8);
+          var compSize = readUint32LE(uint8, offset + 18);
+          var uncompSize = readUint32LE(uint8, offset + 22);
+          var nameLen = readUint16LE(uint8, offset + 26);
+          var extraLen = readUint16LE(uint8, offset + 28);
+
+          var nameStart = offset + 30;
+          var nameEnd = nameStart + nameLen;
+          var fileName = decoder.decode(uint8.subarray(nameStart, nameEnd));
+          var dataStart = nameEnd + extraLen;
+
+          // Falls Bit 3 (Data Descriptor) gesetzt ist und compSize == 0, suche nächste Signatur
+          if ((flags & 0x0008) !== 0 && compSize === 0) {
+            var scan = dataStart;
+            while (scan + 4 <= uint8.length) {
+              var s = readUint32LE(uint8, scan);
+              if (s === 0x08074b50) {
+                compSize = readUint32LE(uint8, scan + 8);
+                break;
+              }
+              if (s === 0x04034b50 || s === 0x02014b50) {
+                compSize = scan - dataStart;
+                break;
+              }
+              scan++;
+            }
+          }
+
+          var dataEnd = dataStart + compSize;
+          if (dataEnd > uint8.length) {
+            throw new Error("Beschädigter ZIP-Eintrag: " + fileName);
+          }
+
+          if (!fileName.endsWith("/")) {
+            var rawSlice = uint8.subarray(dataStart, dataEnd);
+            var outBytes;
+            if (method === 0) {
+              outBytes = rawSlice;
+            } else if (method === 8) {
+              outBytes = await inflateRawBytes(rawSlice);
+            } else {
+              window.appLog("WARN", "Überspringe '" + fileName + "' (nicht unterstützte ZIP-Methode " + method + ").");
+              offset = dataEnd + ((flags & 0x0008) !== 0 ? 16 : 0);
+              continue;
+            }
+            entries.push({
+              name: fileName,
+              text: decoder.decode(outBytes)
+            });
+          }
+
+          offset = dataEnd;
+          if ((flags & 0x0008) !== 0 && offset + 4 <= uint8.length && readUint32LE(uint8, offset) === 0x08074b50) {
+            offset += 16;
+          }
+        }
+        return entries;
+      }
+
+      // ---------- PURE-JS ZIP WRITER (STORE) ----------
+      function crc32(bytes) {
+        var crc = 0xFFFFFFFF;
+        for (var i = 0; i < bytes.length; i++) {
+          crc ^= bytes[i];
+          for (var j = 0; j < 8; j++) {
+            crc = (crc & 1) ? ((crc >>> 1) ^ 0xEDB88320) : (crc >>> 1);
+          }
+        }
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+      }
+
+      function buildZipBlob(files) {
+        var encoder = new TextEncoder();
+        var localParts = [];
+        var centralParts = [];
+        var offset = 0;
+
+        for (var i = 0; i < files.length; i++) {
+          var f = files[i];
+          var nameBytes = encoder.encode(f.name);
+          var dataBytes = encoder.encode(f.content);
+          var crc = crc32(dataBytes);
+
+          var localHeader = new Uint8Array(30 + nameBytes.length);
+          var lv = new DataView(localHeader.buffer);
           lv.setUint32(0, 0x04034b50, true);
-          lv.setUint16(4, 20, true); // Version needed
-          lv.setUint16(6, 0x0800, true); // UTF-8 flag
-          lv.setUint16(8, 0, true); // Method 0: Store
+          lv.setUint16(4, 20, true);
+          lv.setUint16(6, 0x0800, true); // UTF-8
+          lv.setUint16(8, 0, true); // STORE
           lv.setUint16(10, 0, true);
           lv.setUint16(12, 0, true);
           lv.setUint32(14, crc, true);
-          lv.setUint32(18, size, true);
-          lv.setUint32(22, size, true);
+          lv.setUint32(18, dataBytes.length, true);
+          lv.setUint32(22, dataBytes.length, true);
           lv.setUint16(26, nameBytes.length, true);
           lv.setUint16(28, 0, true);
-          new Uint8Array(localHeader, 30).set(nameBytes);
+          localHeader.set(nameBytes, 30);
 
-          localChunks.push(new Uint8Array(localHeader), dataBytes);
+          localParts.push(localHeader, dataBytes);
 
-          // Central Directory Header (46 Bytes + name)
-          const cdHeader = new ArrayBuffer(46 + nameBytes.length);
-          const cv = new DataView(cdHeader);
+          var centralHeader = new Uint8Array(46 + nameBytes.length);
+          var cv = new DataView(centralHeader.buffer);
           cv.setUint32(0, 0x02014b50, true);
           cv.setUint16(4, 20, true);
           cv.setUint16(6, 20, true);
-          cv.setUint16(8, 0x0800, true); // UTF-8 flag
-          cv.setUint16(10, 0, true); // Store
+          cv.setUint16(8, 0x0800, true);
+          cv.setUint16(10, 0, true);
           cv.setUint16(12, 0, true);
           cv.setUint16(14, 0, true);
           cv.setUint32(16, crc, true);
-          cv.setUint32(20, size, true);
-          cv.setUint32(24, size, true);
+          cv.setUint32(20, dataBytes.length, true);
+          cv.setUint32(24, dataBytes.length, true);
           cv.setUint16(28, nameBytes.length, true);
           cv.setUint16(30, 0, true);
           cv.setUint16(32, 0, true);
@@ -1040,1222 +1045,790 @@
           cv.setUint16(36, 0, true);
           cv.setUint32(38, 0, true);
           cv.setUint32(42, offset, true);
-          new Uint8Array(cdHeader, 46).set(nameBytes);
+          centralHeader.set(nameBytes, 46);
 
-          centralChunks.push(new Uint8Array(cdHeader));
-          offset += localHeader.byteLength + size;
-        });
+          centralParts.push(centralHeader);
+          offset += localHeader.length + dataBytes.length;
+        }
 
-        const cdStartOffset = offset;
-        let cdSize = 0;
-        centralChunks.forEach((c) => { cdSize += c.byteLength; });
+        var centralSize = 0;
+        for (var c = 0; c < centralParts.length; c++) centralSize += centralParts[c].length;
 
-        // End of Central Directory (22 Bytes)
-        const eocd = new ArrayBuffer(22);
-        const ev = new DataView(eocd);
+        var eocd = new Uint8Array(22);
+        var ev = new DataView(eocd.buffer);
         ev.setUint32(0, 0x06054b50, true);
         ev.setUint16(4, 0, true);
         ev.setUint16(6, 0, true);
-        ev.setUint16(8, filesArray.length, true);
-        ev.setUint16(10, filesArray.length, true);
-        ev.setUint32(12, cdSize, true);
-        ev.setUint32(16, cdStartOffset, true);
+        ev.setUint16(8, files.length, true);
+        ev.setUint16(10, files.length, true);
+        ev.setUint32(12, centralSize, true);
+        ev.setUint32(16, offset, true);
         ev.setUint16(20, 0, true);
 
-        return new Blob([...localChunks, ...centralChunks, new Uint8Array(eocd)], { type: 'application/zip' });
+        return new Blob(localParts.concat(centralParts, [eocd]), { type: "application/zip" });
       }
 
-      // =========================================================================
-      // 1. STATE, CONSTANTS & DEMO DATA
-      // =========================================================================
-      const state = {
-        waypoints: [],
-        loadedFiles: [],
-        categoryMappings: {},
-        map: null,
-        mapMarkersLayer: null,
-        mapVisible: false,
-      };
-
-      const OSMAND_SYMBOLS = [
-        'Geocache',
-        'Geocache Found',
-        'Puzzle',
-        'Flag',
-        'Parking Area',
-        'Information',
-        'Waypoint',
-        'Trailhead',
-        'Danger Area',
-        'Star',
-        'Checkmark',
-      ];
-
-      const DEFAULT_CATEGORY_CONFIG = {
-        'Traditional Cache': { sym: 'Geocache', shape: 'circle', color: '#16a34a' },
-        'Multi-cache': { sym: 'Flag', shape: 'square', color: '#ea580c' },
-        'Unknown Cache': { sym: 'Puzzle', shape: 'octagon', color: '#2563eb' },
-        'Earthcache': { sym: 'Information', shape: 'circle', color: '#0d9488' },
-        'Letterbox Hybrid': { sym: 'Geocache', shape: 'square', color: '#7c3aed' },
-        'Wherigo Cache': { sym: 'Geocache', shape: 'octagon', color: '#0284c7' },
-        'Virtual Cache': { sym: 'Star', shape: 'circle', color: '#eab308' },
-        'Event Cache': { sym: 'Star', shape: 'circle', color: '#dc2626' },
-        'Parking Area': { sym: 'Parking Area', shape: 'square', color: '#475569' },
-        'Final Location': { sym: 'Flag', shape: 'octagon', color: '#dc2626' },
-        'Reference Point': { sym: 'Waypoint', shape: 'circle', color: '#64748b' },
-        'Gelöst': { sym: 'Geocache', shape: 'circle', color: '#16a34a' },
-        'Später': { sym: 'Puzzle', shape: 'octagon', color: '#2563eb' },
-        'Archiv': { sym: 'Danger Area', shape: 'octagon', color: '#64748b' },
-        'Gefunden': { sym: 'Geocache Found', shape: 'circle', color: '#f59e0b' },
-      };
-
-      const DEMO_GPX_XML = `<?xml version="1.0" encoding="utf-8"?>
-<gpx xmlns="http://www.topografix.com/GPX/1/1" xmlns:groundspeak="http://www.groundspeak.com/cache/1/0/1" version="1.1" creator="Geocaching Demo">
-  <wpt lat="48.681800" lon="9.234700">
-    <name>GCAT8R1</name>
-    <desc>Das pOny HoTte by Gruenbaer, Unknown Cache (4/2)</desc>
-    <sym>Geocache</sym>
-    <type>Geocache|Unknown Cache</type>
-    <groundspeak:cache available="True" archived="False">
-      <groundspeak:name>Das pOny HoTte</groundspeak:name>
-      <groundspeak:type>Unknown Cache</groundspeak:type>
-      <groundspeak:container>Small</groundspeak:container>
-      <groundspeak:difficulty>4</groundspeak:difficulty>
-      <groundspeak:terrain>2</groundspeak:terrain>
-      <groundspeak:encoded_hints>w3w: kiste.neben.baum – Gummistiefel im Herbst von Vorteil.</groundspeak:encoded_hints>
-    </groundspeak:cache>
-  </wpt>
-  <wpt lat="48.685417" lon="9.305467">
-    <name>GC4FR22</name>
-    <desc>Die Weichsel by MyEgo, Traditional Cache (3/2)</desc>
-    <sym>Geocache Found</sym>
-    <type>Geocache|Traditional Cache</type>
-    <groundspeak:cache available="True" archived="False">
-      <groundspeak:name>Die Weichsel</groundspeak:name>
-      <groundspeak:type>Traditional Cache</groundspeak:type>
-      <groundspeak:container>Micro</groundspeak:container>
-      <groundspeak:difficulty>3</groundspeak:difficulty>
-      <groundspeak:terrain>2</groundspeak:terrain>
-      <groundspeak:encoded_hints>Teil des Filder-Boulevards; Final bei Denkendorf.</groundspeak:encoded_hints>
-    </groundspeak:cache>
-  </wpt>
-  <wpt lat="48.661833" lon="9.243017">
-    <name>GC4YA7V</name>
-    <desc>Helmuts Regal by Spassverwaltung, Multi-cache (5/1.5)</desc>
-    <sym>Geocache</sym>
-    <type>Geocache|Multi-cache</type>
-    <groundspeak:cache available="True" archived="False">
-      <groundspeak:name>Helmuts Regal</groundspeak:name>
-      <groundspeak:type>Multi-cache</groundspeak:type>
-      <groundspeak:container>Regular</groundspeak:container>
-      <groundspeak:difficulty>5</groundspeak:difficulty>
-      <groundspeak:terrain>1.5</groundspeak:terrain>
-      <groundspeak:encoded_hints>Steinhaufen im Gestrüpp.</groundspeak:encoded_hints>
-    </groundspeak:cache>
-  </wpt>
-  <wpt lat="48.690167" lon="9.265417">
-    <name>GC4P1KM</name>
-    <desc>Mystery vs. TRADi (Archiviert)</desc>
-    <sym>Geocache</sym>
-    <type>Geocache|Unknown Cache</type>
-    <groundspeak:cache available="False" archived="True">
-      <groundspeak:name>Mystery vs. TRADi</groundspeak:name>
-      <groundspeak:type>Unknown Cache</groundspeak:type>
-      <groundspeak:container>Micro</groundspeak:container>
-      <groundspeak:difficulty>2.5</groundspeak:difficulty>
-      <groundspeak:terrain>1.5</groundspeak:terrain>
-      <groundspeak:encoded_hints>Archiviert; ca. 1,2 km vom Listing-Punkt.</groundspeak:encoded_hints>
-    </groundspeak:cache>
-  </wpt>
-</gpx>`;
-
-      // =========================================================================
-      // 8. ROBUST FILE READER & IMPORT HANDLERS (GPX & ZIP)
-      // =========================================================================
-      async function readFileBytesRobustAsync(file) {
-        const name = file.name || 'Unbenannte_Datei';
-        const mime = file.type || '(leer)';
-        const modDate = file.lastModified ? new Date(file.lastModified).toISOString() : 'unbekannt';
-        appendLog(`Datei-Metadaten: Name="${name}" | Größe=${file.size} Bytes (${formatBytes(file.size)}) | MIME="${mime}" | Geändert=${modDate}`, 'step');
-
-        if (file.size === 0) {
-          throw new Error(`Die Datei "${name}" hat 0 Bytes (leer oder vom Android-Speicheranbieter nicht freigegeben).`);
+      // ---------- DATEI EINLESEN MIT FALLBACK ----------
+      function readFileAsArrayBuffer(file) {
+        if (typeof file.arrayBuffer === "function") {
+          return file.arrayBuffer().catch(function(err) {
+            window.appLog("WARN", "file.arrayBuffer() fehlgeschlagen (" + err.message + "), nutze FileReader-Fallback...");
+            return readWithFileReader(file);
+          });
         }
+        return readWithFileReader(file);
+      }
 
-        // Versuch 1: Modernes file.arrayBuffer()
-        try {
-          appendLog(`Lese Datei-Bytes via file.arrayBuffer()...`, 'info');
-          const buf = await file.arrayBuffer();
-          appendLog(`file.arrayBuffer() erfolgreich: ${buf.byteLength} Bytes im Speicher.`, 'success');
-          return buf;
-        } catch (err1) {
-          const err1Detail = `${err1.name || 'Error'}: ${err1.message || String(err1)}`;
-          appendLog(`file.arrayBuffer() fehlgeschlagen (${err1Detail}) – starte FileReader-Fallback...`, 'warn');
-        }
-
-        // Versuch 2: Klassischer FileReader.readAsArrayBuffer() Fallback für Android content://
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            if (reader.result instanceof ArrayBuffer) {
-              appendLog(`FileReader-Fallback erfolgreich: ${reader.result.byteLength} Bytes gelesen.`, 'success');
-              resolve(reader.result);
-            } else {
-              reject(new Error(`FileReader lieferte kein gültiges ArrayBuffer-Ergebnis für "${name}".`));
-            }
-          };
-          reader.onerror = () => {
-            const fErr = reader.error;
-            const detail = fErr ? `${fErr.name}: ${fErr.message}` : 'Unbekannter Lesefehler (NotReadableError / Berechtigung)';
-            reject(new Error(`Android/Browser verweigert Lesezugriff auf "${name}" (${detail}). Tipp: Nutze "GPX-XML-Code direkt einfügen" oder öffne die HTML-Datei über einen lokalen Webserver.`));
+      function readWithFileReader(file) {
+        return new Promise(function(resolve, reject) {
+          var reader = new FileReader();
+          reader.onload = function() { resolve(reader.result); };
+          reader.onerror = function() {
+            var err = reader.error || new Error("Unbekannter FileReader-Fehler");
+            reject(new Error(err.name + ": " + err.message));
           };
           reader.readAsArrayBuffer(file);
         });
       }
 
-      function detectFormatFromBuffer(arrayBuffer, fileName) {
-        const bytes = new Uint8Array(arrayBuffer);
-        const hexPreview = bytesToHexDump(bytes, 16);
-        const nameLower = (fileName || '').toLowerCase();
-
-        // ZIP Magic Bytes: PK\x03\x04 oder leeres ZIP PK\x05\x06
-        if (
-          bytes.length >= 4 &&
-          bytes[0] === 0x50 &&
-          bytes[1] === 0x4b &&
-          (bytes[2] === 0x03 || bytes[2] === 0x05 || bytes[2] === 0x07)
-        ) {
-          return { format: 'zip', hexPreview };
+      // ---------- GPX PARSER ----------
+      function childText(parent, localName) {
+        if (!parent || !parent.children) return "";
+        for (var i = 0; i < parent.children.length; i++) {
+          var el = parent.children[i];
+          var ln = el.localName || el.nodeName.split(":").pop();
+          if (ln === localName) {
+            return (el.textContent || "").trim();
+          }
         }
-
-        const headSlice = bytes.subarray(0, Math.min(bytes.length, 1024));
-        const headerText = new TextDecoder('utf-8', { fatal: false }).decode(headSlice).replace(/^\uFEFF/, '').trim();
-
-        if (
-          nameLower.endsWith('.gpx') ||
-          nameLower.endsWith('.xml') ||
-          headerText.startsWith('<?xml') ||
-          headerText.includes('<gpx') ||
-          headerText.includes('<wpt')
-        ) {
-          return { format: 'gpx', hexPreview };
-        }
-
-        return { format: 'unknown', hexPreview };
+        return "";
       }
 
+      function findDescendantByLocalName(parent, localName) {
+        if (!parent) return null;
+        var all = parent.getElementsByTagName("*");
+        for (var i = 0; i < all.length; i++) {
+          var ln = all[i].localName || all[i].nodeName.split(":").pop();
+          if (ln === localName) return all[i];
+        }
+        return null;
+      }
+
+      function parseGpxXml(xmlString, sourceName) {
+        var cleaned = xmlString.replace(/^\uFEFF/, "").trim();
+        var parser = new DOMParser();
+        var doc = parser.parseFromString(cleaned, "application/xml");
+        var parseErr = doc.getElementsByTagName("parsererror");
+        if (parseErr && parseErr.length > 0) {
+          throw new Error("XML-Syntaxfehler in '" + sourceName + "': " + parseErr[0].textContent.slice(0, 140));
+        }
+
+        var wpts = doc.getElementsByTagName("wpt");
+        var parsed = [];
+
+        for (var i = 0; i < wpts.length; i++) {
+          var w = wpts[i];
+          var lat = parseFloat(w.getAttribute("lat"));
+          var lon = parseFloat(w.getAttribute("lon"));
+          if (isNaN(lat) || isNaN(lon)) continue;
+
+          var rawName = childText(w, "name") || ("WPT-" + (i + 1));
+          var cmt = childText(w, "cmt");
+          var desc = childText(w, "desc");
+          var sym = childText(w, "sym");
+          var existingType = childText(w, "type");
+
+          var cacheEl = findDescendantByLocalName(w, "cache");
+          var cacheName = "";
+          var cacheType = "";
+          var difficulty = "";
+          var terrain = "";
+          var isFound = false;
+
+          if (sym.toLowerCase().indexOf("found") !== -1) {
+            isFound = true;
+          }
+
+          if (cacheEl) {
+            cacheName = childText(cacheEl, "name");
+            cacheType = childText(cacheEl, "type");
+            difficulty = childText(cacheEl, "difficulty");
+            terrain = childText(cacheEl, "terrain");
+
+            // Prüfe Groundspeak-Logs auf "Found it"
+            var logsEl = findDescendantByLocalName(cacheEl, "logs");
+            if (logsEl) {
+              var logNodes = logsEl.children;
+              for (var li = 0; li < logNodes.length; li++) {
+                var lType = childText(logNodes[li], "type").toLowerCase();
+                if (lType === "found it" || lType === "attended" || lType === "webcam photo taken") {
+                  isFound = true;
+                  break;
+                }
+              }
+            }
+          }
+
+          var code = rawName;
+          var title = cacheName || cmt || rawName;
+          if (!cacheName && rawName.indexOf("–") !== -1) {
+            var parts = rawName.split("–");
+            code = parts[0].trim();
+            title = parts.slice(1).join("–").trim();
+          }
+
+          if (!cacheType) {
+            if (existingType && existingType.toLowerCase().indexOf("geocache") === -1) {
+              cacheType = existingType;
+            } else if (sym.toLowerCase().indexOf("parking") !== -1) {
+              cacheType = "Parking Area";
+            } else {
+              cacheType = "Traditional Cache";
+            }
+          }
+
+          parsed.push({
+            id: sourceName + "::" + i + "::" + code,
+            lat: lat,
+            lon: lon,
+            code: code,
+            title: title,
+            cmt: cmt,
+            desc: desc,
+            sym: sym,
+            existingType: existingType || cacheType,
+            cacheType: cacheType,
+            difficulty: difficulty,
+            terrain: terrain,
+            sourceFile: sourceName,
+            isFound: isFound
+          });
+        }
+
+        return parsed;
+      }
+
+      // ---------- DATEI-VERARBEITUNG ----------
       async function handleFiles(fileList) {
         if (!fileList || fileList.length === 0) {
-          appendLog('Dateiauswahl ohne Datei geschlossen (0 Dateien).', 'warn');
+          window.appLog("WARN", "Dateiauswahl wurde ohne Datei geschlossen.");
           return;
         }
 
-        let totalImported = 0;
-        let processedFilesCount = 0;
-        let lastErrorReason = '';
+        window.appLog("INFO", fileList.length + " Datei(en) zum Einlesen ausgewählt.");
+        setStatus("busy", "Lese Dateien ein...", 10);
 
-        appendLog(`${fileList.length} Datei(en) zum Einlesen ausgewählt (Origin: ${window.location.protocol}//${window.location.host || 'local'}).`, 'step');
-        setProgress(5, 'Lese Datei aus dem Speicher...', 'running');
-        await yieldToBrowser();
+        var newlyParsed = [];
 
-        for (let i = 0; i < fileList.length; i++) {
-          const file = fileList[i];
-          const displayName = file.name || `Importierte_Datei_${i + 1}`;
+        for (var i = 0; i < fileList.length; i++) {
+          var file = fileList[i];
+          var basePct = 10 + Math.round((i / fileList.length) * 75);
+          setStatus("busy", "Verarbeite " + file.name + "...", basePct);
+          window.appLog("INFO", "Datei #" + (i + 1) + ": '" + file.name + "' (" + file.size + " Bytes, Typ: '" + (file.type || "unbekannt") + "')");
 
           try {
-            setProgress(10, `Lese "${displayName}"...`, 'running');
-            const arrayBuffer = await readFileBytesRobustAsync(file);
+            if (file.size === 0) {
+              throw new Error("Die Datei ist leer (0 Bytes).");
+            }
 
-            const { format, hexPreview } = detectFormatFromBuffer(arrayBuffer, displayName);
-            appendLog(`Signatur-Prüfung für "${displayName}": Format=${format.toUpperCase()} | Erste Bytes=[${hexPreview}]`, 'step');
+            var buffer = await readFileAsArrayBuffer(file);
+            var bytes = new Uint8Array(buffer);
+            window.appLog("INFO", "Header-Bytes (Hex): " + toHex(bytes, 16));
 
-            if (format === 'gpx') {
-              setProgress(20, `Dekodiere GPX-XML "${displayName}"...`, 'running');
-              const text = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(arrayBuffer));
-              const cleanText = text.replace(/^\uFEFF/, '').trim();
-              const pts = await parseGpxStringAsync(cleanText, displayName, 25, 78);
+            // Prüfe auf ZIP-Magic-Bytes (50 4B 03 04)
+            var isZip = bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4B && bytes[2] === 0x03 && bytes[3] === 0x04;
 
-              if (pts.length === 0) {
-                lastErrorReason = `0 gültige <wpt>-Wegpunkte in "${displayName}" enthalten.`;
-                appendLog(lastErrorReason, 'warn');
-                showToast(lastErrorReason, 'error');
-                continue;
+            if (isZip) {
+              window.appLog("INFO", "ZIP-Archiv erkannt – entpacke Einträge...");
+              var entries = await extractZipEntries(bytes);
+              window.appLog("INFO", entries.length + " Datei(en) im ZIP-Archiv gefunden.");
+
+              var gpxCountInZip = 0;
+              for (var ei = 0; ei < entries.length; ei++) {
+                var entry = entries[ei];
+                var lowerName = entry.name.toLowerCase();
+                if (lowerName.endsWith(".gpx") || entry.text.indexOf("<gpx") !== -1) {
+                  gpxCountInZip++;
+                  var wptsFromZip = parseGpxXml(entry.text, entry.name);
+                  window.appLog("SUCCESS", "ZIP-Eintrag '" + entry.name + "': " + wptsFromZip.length + " Wegpunkt(e) geladen.");
+                  newlyParsed = newlyParsed.concat(wptsFromZip);
+                } else {
+                  window.appLog("INFO", "ZIP-Eintrag '" + entry.name + "' ignoriert (keine GPX-Datei).");
+                }
               }
 
-              state.waypoints.push(...pts);
-              if (!state.loadedFiles.includes(displayName)) {
-                state.loadedFiles.push(displayName);
-              }
-              totalImported += pts.length;
-              processedFilesCount++;
-            } else if (format === 'zip') {
-              setProgress(18, `Entpacke ZIP-Archiv "${displayName}" nativ...`, 'running');
-              await yieldToBrowser();
-
-              const extractedGpxList = await extractZipEntriesNativeAsync(arrayBuffer, displayName);
-              appendLog(`ZIP-Entpacken abgeschlossen: ${extractedGpxList.length} GPX/XML-Datei(en) extrahiert.`, extractedGpxList.length > 0 ? 'success' : 'warn');
-
-              if (extractedGpxList.length === 0) {
-                lastErrorReason = `Keine .gpx- oder .xml-Dateien im ZIP-Archiv "${displayName}" gefunden.`;
-                showToast(lastErrorReason, 'error');
-                continue;
-              }
-
-              let zipPtsCount = 0;
-              for (let eIdx = 0; eIdx < extractedGpxList.length; eIdx++) {
-                const entry = extractedGpxList[eIdx];
-                const startPct = 25 + (eIdx / extractedGpxList.length) * 52;
-                const endPct = 25 + ((eIdx + 1) / extractedGpxList.length) * 52;
-                appendLog(`Verarbeite extrahierte Datei "${entry.name}" (${formatBytes(entry.text.length)})...`, 'step');
-                const cleanXml = entry.text.replace(/^\uFEFF/, '').trim();
-                const pts = await parseGpxStringAsync(cleanXml, entry.name, startPct, endPct);
-                state.waypoints.push(...pts);
-                zipPtsCount += pts.length;
-              }
-
-              if (zipPtsCount === 0) {
-                lastErrorReason = `Die GPX-Dateien in "${displayName}" enthielten 0 gültige <wpt>-Wegpunkte.`;
-                appendLog(lastErrorReason, 'warn');
-                showToast(lastErrorReason, 'error');
-                continue;
-              }
-
-              totalImported += zipPtsCount;
-              processedFilesCount++;
-              if (!state.loadedFiles.includes(displayName)) {
-                state.loadedFiles.push(displayName);
+              if (gpxCountInZip === 0) {
+                window.appLog("WARN", "Im ZIP-Archiv wurde keine .gpx-Datei gefunden.");
               }
             } else {
-              lastErrorReason = `Unbekanntes Dateiformat bei "${displayName}" (Hex: ${hexPreview}). Erwartet wird ZIP (50 4b 03 04) oder GPX-XML.`;
-              appendLog(lastErrorReason, 'error');
-              showToast(lastErrorReason, 'error');
+              var text = new TextDecoder("utf-8").decode(bytes);
+              if (text.indexOf("<gpx") === -1) {
+                throw new Error("Datei enthält weder eine ZIP-Signatur noch ein <gpx>-Element.");
+              }
+              var wpts = parseGpxXml(text, file.name);
+              window.appLog("SUCCESS", "'" + file.name + "': " + wpts.length + " Wegpunkt(e) geladen.");
+              newlyParsed = newlyParsed.concat(wpts);
             }
           } catch (err) {
-            const errName = err && err.name ? err.name : 'Error';
-            const errMsg = err && err.message ? err.message : String(err);
-            lastErrorReason = `${errName}: ${errMsg}`;
-            appendLog(`Fehler bei "${displayName}" -> ${lastErrorReason}`, 'error');
-            setProgress(100, `Fehler: ${errMsg}`, 'error');
-            showToast(errMsg, 'error');
+            window.appLog("ERROR", "Fehler bei '" + file.name + "': " + (err && err.message ? err.message : String(err)));
           }
         }
 
-        if (totalImported > 0) {
-          await applyRulesToAllWaypointsAsync(false);
-          showToast(`${totalImported} Wegpunkte aus ${processedFilesCount} Datei(en) erfolgreich importiert!`, 'success');
+        if (newlyParsed.length > 0) {
+          state.waypoints = state.waypoints.concat(newlyParsed);
+          syncCategories();
+          renderAll();
+          setStatus("ok", newlyParsed.length + " Wegpunkt(e) erfolgreich geladen (Gesamt: " + state.waypoints.length + ").", 100);
         } else {
-          const summaryMsg = lastErrorReason || 'Keine gültigen Wegpunkte gefunden (siehe rotes [ERR]/[WARN] im Log).';
-          setProgress(0, `Import fehlgeschlagen: ${summaryMsg}`, 'error');
+          setStatus("err", "Import ohne gültige Wegpunkte beendet – siehe Log.", 0);
         }
       }
 
-      function updateStats() {
-        const total = state.waypoints.length;
-        const active = state.waypoints.filter((w) => w.selected).length;
-        const layers = new Set(state.waypoints.filter((w) => w.selected).map((w) => w.outputLayer)).size;
-        const extActive = document.getElementById('optOsmandExtensions').checked;
-
-        document.getElementById('statTotalWpts').textContent = String(total);
-        document.getElementById('statSelectedWpts').textContent = `${active} aktiv`;
-        document.getElementById('statLayerCount').textContent = String(layers);
-        document.getElementById('statFileCount').textContent = String(state.loadedFiles.length);
-        document.getElementById('statOsmandExt').textContent = extActive ? 'Aktiv' : 'Aus';
+      // ---------- KATEGORIEN & RENDERING ----------
+      function getRawCategoryKey(wpt) {
+        var mode = document.getElementById("group-mode").value;
+        if (mode === "existingType") return wpt.existingType || "Standard";
+        if (mode === "sourceFile") return wpt.sourceFile || "Datei";
+        if (mode === "single") return "Alle Wegpunkte";
+        return wpt.cacheType || "Traditional Cache";
       }
 
-      function renderCategoryMappingTable() {
-        const tbody = document.getElementById('categoryMappingBody');
-        tbody.innerHTML = '';
+      function syncCategories() {
+        var seen = {};
+        var colorIdx = 0;
 
-        const counts = {};
-        state.waypoints.forEach((w) => {
-          counts[w._categoryKey] = (counts[w._categoryKey] || 0) + 1;
-        });
-
-        Object.keys(state.categoryMappings).forEach((catKey) => {
-          const mapObj = state.categoryMappings[catKey];
-          const count = counts[catKey] || 0;
-          if (count === 0) return;
-
-          const tr = document.createElement('tr');
-          tr.className = 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors';
-
-          const symOptions = OSMAND_SYMBOLS.map(
-            (s) => `<option value="${s}" ${mapObj.sym === s ? 'selected' : ''}>${s}</option>`
-          ).join('');
-
-          tr.innerHTML = `
-            <td class="py-2.5 pr-2 text-center pin-cell">
-              ${renderOsmandPinSvg(mapObj.sym, mapObj.shape, mapObj.color, 28)}
-            </td>
-            <td class="py-2.5 px-2 font-medium text-slate-800 dark:text-slate-200 text-xs sm:text-sm">
-              ${escapeXml(catKey)}
-            </td>
-            <td class="py-2.5 px-2">
-              <input type="text" data-cat="${escapeXml(catKey)}" class="map-layer-input w-full min-w-[150px] rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-white" value="${escapeXml(mapObj.layerName)}" />
-            </td>
-            <td class="py-2.5 px-2">
-              <select data-cat="${escapeXml(catKey)}" class="map-sym-select rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-1.5 text-xs text-slate-900 dark:text-white">
-                ${symOptions}
-              </select>
-            </td>
-            <td class="py-2.5 px-2">
-              <select data-cat="${escapeXml(catKey)}" class="map-shape-select rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-1.5 text-xs text-slate-900 dark:text-white">
-                <option value="circle" ${mapObj.shape === 'circle' ? 'selected' : ''}>Kreis</option>
-                <option value="octagon" ${mapObj.shape === 'octagon' ? 'selected' : ''}>Achteck</option>
-                <option value="square" ${mapObj.shape === 'square' ? 'selected' : ''}>Quadrat</option>
-              </select>
-            </td>
-            <td class="py-2.5 px-2 text-center">
-              <input type="color" data-cat="${escapeXml(catKey)}" class="map-color-input w-8 h-7 rounded border border-slate-300 dark:border-slate-700 bg-transparent cursor-pointer" value="${mapObj.color}" />
-            </td>
-            <td class="py-2.5 pl-2 text-right font-mono text-xs font-semibold text-slate-600 dark:text-slate-300">
-              ${count}
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
-
-        // Live-Updates für Mapping-Inputs
-        tbody.querySelectorAll('.map-layer-input').forEach((inp) => {
-          inp.addEventListener('change', (e) => {
-            const cat = e.target.getAttribute('data-cat');
-            state.categoryMappings[cat].layerName = e.target.value;
-            applyRulesToAllWaypointsAsync(false);
-          });
-        });
-
-        tbody.querySelectorAll('.map-sym-select').forEach((sel) => {
-          sel.addEventListener('change', (e) => {
-            const cat = e.target.getAttribute('data-cat');
-            state.categoryMappings[cat].sym = e.target.value;
-            applyRulesToAllWaypointsAsync(false);
-          });
-        });
-
-        tbody.querySelectorAll('.map-shape-select').forEach((sel) => {
-          sel.addEventListener('change', (e) => {
-            const cat = e.target.getAttribute('data-cat');
-            state.categoryMappings[cat].shape = e.target.value;
-            applyRulesToAllWaypointsAsync(false);
-          });
-        });
-
-        tbody.querySelectorAll('.map-color-input').forEach((col) => {
-          col.addEventListener('input', (e) => {
-            const cat = e.target.getAttribute('data-cat');
-            state.categoryMappings[cat].color = e.target.value;
-            applyRulesToAllWaypointsAsync(false);
-          });
-        });
-      }
-
-      function updateLayerFilterDropdown() {
-        const select = document.getElementById('filterLayer');
-        const current = select.value;
-        const layers = Array.from(new Set(state.waypoints.map((w) => w.outputLayer))).sort();
-
-        select.innerHTML = `<option value="ALL">Alle Ebenen anzeigen (${state.waypoints.length})</option>`;
-        layers.forEach((layer) => {
-          const count = state.waypoints.filter((w) => w.outputLayer === layer).length;
-          const opt = document.createElement('option');
-          opt.value = layer;
-          opt.textContent = `${layer} (${count})`;
-          if (layer === current) opt.selected = true;
-          select.appendChild(opt);
-        });
-      }
-
-      function getFilteredWaypoints() {
-        const layerFilter = document.getElementById('filterLayer').value;
-        const query = (document.getElementById('filterSearch').value || '').trim().toLowerCase();
-
-        return state.waypoints.filter((w) => {
-          if (layerFilter !== 'ALL' && w.outputLayer !== layerFilter) return false;
-          if (query) {
-            const hay = `${w.outputName} ${w.gcCode} ${w.outputLayer} ${w.hints} ${w.rawDesc}`.toLowerCase();
-            if (!hay.includes(query)) return false;
+        for (var i = 0; i < state.waypoints.length; i++) {
+          var key = getRawCategoryKey(state.waypoints[i]);
+          seen[key] = true;
+          if (!state.categoryConfigs[key]) {
+            var preset = DEFAULT_CATEGORY_STYLES[key];
+            if (preset) {
+              state.categoryConfigs[key] = {
+                layer: preset.layer,
+                color: preset.color,
+                shape: preset.shape,
+                icon: preset.icon
+              };
+            } else {
+              state.categoryConfigs[key] = {
+                layer: key.replace(/^Geocaching\s*-\s*/i, ""),
+                color: FALLBACK_COLORS[colorIdx % FALLBACK_COLORS.length],
+                shape: "circle",
+                icon: "geocache"
+              };
+              colorIdx++;
+            }
           }
-          return true;
-        });
+        }
+      }
+
+      function resolveWaypointStyle(wpt) {
+        var prefix = document.getElementById("layer-prefix").value || "";
+        var foundMode = document.getElementById("found-mode").value;
+        var foundColor = document.getElementById("found-color").value;
+        var foundShape = document.getElementById("found-shape").value;
+        var nameFmt = document.getElementById("name-format").value;
+
+        var catKey = getRawCategoryKey(wpt);
+        var cfg = state.categoryConfigs[catKey] || { layer: catKey, color: "#15803d", shape: "circle", icon: "geocache" };
+
+        var dtStr = (wpt.difficulty && wpt.terrain) ? " [D" + wpt.difficulty + "/T" + wpt.terrain + "]" : "";
+        var displayName = wpt.code + " – " + wpt.title;
+        if (nameFmt === "name_only") displayName = wpt.title;
+        if (nameFmt === "code_dt_name") displayName = wpt.code + dtStr + " – " + wpt.title;
+
+        var layerName = prefix + cfg.layer;
+        var color = cfg.color;
+        var shape = cfg.shape;
+        var iconId = cfg.icon;
+        var excluded = false;
+
+        if (wpt.isFound) {
+          if (foundMode === "exclude") {
+            excluded = true;
+          } else if (foundMode === "separate") {
+            layerName = prefix + "Gefunden";
+            color = foundColor;
+            shape = foundShape;
+            iconId = "geocache_found";
+            displayName = "✓ " + displayName;
+          } else if (foundMode === "prefix_only") {
+            color = foundColor;
+            shape = foundShape;
+            iconId = "geocache_found";
+            displayName = "✓ " + displayName;
+          }
+        }
+
+        return {
+          excluded: excluded,
+          layerName: layerName,
+          color: color,
+          shape: shape,
+          iconObj: getIconObj(iconId),
+          displayName: displayName
+        };
+      }
+
+      function renderFoundPreview() {
+        var prev = document.getElementById("found-pin-preview");
+        var color = document.getElementById("found-color").value;
+        var shape = document.getElementById("found-shape").value;
+        prev.className = "osmand-pin " + shape;
+        prev.style.background = color;
+      }
+
+      function renderMappingTable() {
+        var tbody = document.getElementById("mapping-tbody");
+        tbody.innerHTML = "";
+
+        if (state.waypoints.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:18px;">Noch keine Daten geladen. Lade oben eine GPX/ZIP-Datei oder klicke auf „Demo-GPX laden“.</td></tr>';
+          return;
+        }
+
+        var counts = {};
+        for (var i = 0; i < state.waypoints.length; i++) {
+          var k = getRawCategoryKey(state.waypoints[i]);
+          counts[k] = (counts[k] || 0) + 1;
+        }
+
+        var keys = Object.keys(counts);
+        for (var ki = 0; ki < keys.length; ki++) {
+          (function(catKey) {
+            var cfg = state.categoryConfigs[catKey];
+            var iconObj = getIconObj(cfg.icon);
+
+            var tr = document.createElement("tr");
+
+            // Vorschau-Pin
+            var tdPin = document.createElement("td");
+            var pinDiv = document.createElement("div");
+            pinDiv.className = "osmand-pin " + cfg.shape;
+            pinDiv.style.background = cfg.color;
+            pinDiv.textContent = iconObj.glyph;
+            tdPin.appendChild(pinDiv);
+
+            // Kategorie
+            var tdCat = document.createElement("td");
+            tdCat.innerHTML = "<strong>" + escapeHtml(catKey) + "</strong>";
+
+            // Anzahl
+            var tdCount = document.createElement("td");
+            tdCount.textContent = counts[catKey] + "×";
+
+            // Ebenenname
+            var tdLayer = document.createElement("td");
+            var inpLayer = document.createElement("input");
+            inpLayer.type = "text";
+            inpLayer.value = cfg.layer;
+            inpLayer.style.width = "100%";
+            inpLayer.addEventListener("input", function() {
+              cfg.layer = inpLayer.value;
+              renderWaypointsTable();
+            });
+            tdLayer.appendChild(inpLayer);
+
+            // Form
+            var tdShape = document.createElement("td");
+            var selShape = document.createElement("select");
+            selShape.innerHTML = '<option value="circle">Kreis</option><option value="octagon">Achteck</option><option value="square">Quadrat</option>';
+            selShape.value = cfg.shape;
+            selShape.addEventListener("change", function() {
+              cfg.shape = selShape.value;
+              pinDiv.className = "osmand-pin " + cfg.shape;
+              renderWaypointsTable();
+            });
+            tdShape.appendChild(selShape);
+
+            // Farbe
+            var tdColor = document.createElement("td");
+            var inpColor = document.createElement("input");
+            inpColor.type = "color";
+            inpColor.value = cfg.color;
+            inpColor.addEventListener("input", function() {
+              cfg.color = inpColor.value;
+              pinDiv.style.background = cfg.color;
+              renderWaypointsTable();
+            });
+            tdColor.appendChild(inpColor);
+
+            // Icon
+            var tdIcon = document.createElement("td");
+            var selIcon = document.createElement("select");
+            for (var oi = 0; oi < ICON_OPTIONS.length; oi++) {
+              var opt = document.createElement("option");
+              opt.value = ICON_OPTIONS[oi].id;
+              opt.textContent = ICON_OPTIONS[oi].label;
+              selIcon.appendChild(opt);
+            }
+            selIcon.value = cfg.icon;
+            selIcon.addEventListener("change", function() {
+              cfg.icon = selIcon.value;
+              pinDiv.textContent = getIconObj(cfg.icon).glyph;
+              renderWaypointsTable();
+            });
+            tdIcon.appendChild(selIcon);
+
+            tr.appendChild(tdPin);
+            tr.appendChild(tdCat);
+            tr.appendChild(tdCount);
+            tr.appendChild(tdLayer);
+            tr.appendChild(tdShape);
+            tr.appendChild(tdColor);
+            tr.appendChild(tdIcon);
+            tbody.appendChild(tr);
+          })(keys[ki]);
+        }
       }
 
       function renderWaypointsTable() {
-        const tbody = document.getElementById('waypointsTableBody');
-        tbody.innerHTML = '';
-        const visible = getFilteredWaypoints();
+        var tbody = document.getElementById("waypoints-tbody");
+        var statsBar = document.getElementById("stats-bar");
+        tbody.innerHTML = "";
 
-        // Performance-Schutz bei extrem großen Listen in der DOM-Tabelle (erste 300 rendern, Rest über Suche/Ebenenfilter erreichbar)
-        const renderLimit = 300;
-        const slice = visible.slice(0, renderLimit);
+        var activeLayers = {};
+        var exportedCount = 0;
+        var foundCount = 0;
 
-        slice.forEach((w) => {
-          const tr = document.createElement('tr');
-          tr.className = w.selected
-            ? 'hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors'
-            : 'opacity-50 bg-slate-50/50 dark:bg-slate-900/50';
-
-          const symOptions = OSMAND_SYMBOLS.map(
-            (s) => `<option value="${s}" ${w.outputSym === s ? 'selected' : ''}>${s}</option>`
-          ).join('');
-
-          const foundBadge = w.isFound
-            ? `<button type="button" data-id="${w.id}" class="toggle-found-btn px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 cursor-pointer" title="Klicken zum Umschalten">✓ Gefunden</button>`
-            : `<button type="button" data-id="${w.id}" class="toggle-found-btn px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-amber-50 cursor-pointer" title="Als gefunden markieren">Offen</button>`;
-
-          const dtInfo = w.difficulty && w.terrain ? `D${w.difficulty}/T${w.terrain}` : '';
-          const detailText = [dtInfo, w.container, w.hints || w.rawCmt || w.rawDesc].filter(Boolean).join(' • ');
-
-          tr.innerHTML = `
-            <td class="py-2.5 pl-3 pr-2">
-              <input type="checkbox" data-id="${w.id}" class="wpt-select-cb w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-600 cursor-pointer" ${w.selected ? 'checked' : ''} />
-            </td>
-            <td class="py-2.5 px-2 text-center">
-              ${renderOsmandPinSvg(w.outputSym, w.outputShape, w.outputColor, 26)}
-            </td>
-            <td class="py-2.5 px-2">
-              <input type="text" data-id="${w.id}" class="wpt-name-input w-full rounded-lg border border-transparent hover:border-slate-300 focus:border-emerald-500 dark:hover:border-slate-700 bg-transparent px-2 py-1 text-xs font-medium text-slate-900 dark:text-white focus:outline-none" value="${escapeXml(w.outputName)}" />
-            </td>
-            <td class="py-2.5 px-2 text-center">
-              ${foundBadge}
-            </td>
-            <td class="py-2.5 px-2">
-              <input type="text" data-id="${w.id}" class="wpt-layer-input w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-1 text-xs text-slate-800 dark:text-slate-200" value="${escapeXml(w.outputLayer)}" />
-            </td>
-            <td class="py-2.5 px-2">
-              <select data-id="${w.id}" class="wpt-sym-select rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-1 text-xs text-slate-800 dark:text-slate-200">
-                ${symOptions}
-              </select>
-            </td>
-            <td class="py-2.5 px-2 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
-              ${w.lat.toFixed(5)}, ${w.lon.toFixed(5)}
-            </td>
-            <td class="py-2.5 pl-2 pr-3 text-xs text-slate-500 dark:text-slate-400 max-w-xs truncate" title="${escapeXml(detailText)}">
-              ${escapeXml(detailText)}
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
-
-        if (visible.length > renderLimit) {
-          const infoRow = document.createElement('tr');
-          infoRow.innerHTML = `<td colspan="8" class="py-3 px-4 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/60">
-            Es werden die ersten ${renderLimit} von ${visible.length} Wegpunkten angezeigt (alle ${visible.length} werden beim Export vollständig berücksichtigt). Nutze oben den Ebenen- oder Suchfilter, um gezielt Punkte einzublenden.
-          </td>`;
-          tbody.appendChild(infoRow);
-        }
-
-        // Row Event Listeners
-        tbody.querySelectorAll('.wpt-select-cb').forEach((cb) => {
-          cb.addEventListener('change', (e) => {
-            const wpt = state.waypoints.find((item) => item.id === e.target.getAttribute('data-id'));
-            if (wpt) {
-              wpt.selected = e.target.checked;
-              updateStats();
-              if (state.mapVisible) updateMapMarkers();
-            }
-          });
-        });
-
-        tbody.querySelectorAll('.toggle-found-btn').forEach((btn) => {
-          btn.addEventListener('click', (e) => {
-            const wpt = state.waypoints.find((item) => item.id === e.target.getAttribute('data-id'));
-            if (wpt) {
-              wpt.isFound = !wpt.isFound;
-              applyRulesToAllWaypointsAsync(true);
-            }
-          });
-        });
-
-        tbody.querySelectorAll('.wpt-name-input').forEach((inp) => {
-          inp.addEventListener('change', (e) => {
-            const wpt = state.waypoints.find((item) => item.id === e.target.getAttribute('data-id'));
-            if (wpt) wpt.outputName = e.target.value;
-          });
-        });
-
-        tbody.querySelectorAll('.wpt-layer-input').forEach((inp) => {
-          inp.addEventListener('change', (e) => {
-            const wpt = state.waypoints.find((item) => item.id === e.target.getAttribute('data-id'));
-            if (wpt) {
-              wpt.outputLayer = e.target.value;
-              updateStats();
-              updateLayerFilterDropdown();
-            }
-          });
-        });
-
-        tbody.querySelectorAll('.wpt-sym-select').forEach((sel) => {
-          sel.addEventListener('change', (e) => {
-            const wpt = state.waypoints.find((item) => item.id === e.target.getAttribute('data-id'));
-            if (wpt) {
-              wpt.outputSym = e.target.value;
-              renderWaypointsTable();
-              if (state.mapVisible) updateMapMarkers();
-            }
-          });
-        });
-      }
-
-      // =========================================================================
-      // 6. LEAFLET / OPENSTREETMAP PREVIEW
-      // =========================================================================
-      function initMapIfNeeded() {
-        if (state.map || typeof L === 'undefined') return;
-        try {
-          state.map = L.map('mapContainer').setView([48.68, 9.25], 11);
-          const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap',
-          });
-          tileLayer.on('tileerror', () => {
-            document.getElementById('mapOfflineFallback').classList.remove('hidden');
-          });
-          tileLayer.addTo(state.map);
-          state.mapMarkersLayer = L.layerGroup().addTo(state.map);
-        } catch (err) {
-          document.getElementById('mapOfflineFallback').classList.remove('hidden');
-        }
-      }
-
-      function updateMapMarkers() {
-        if (!state.map || !state.mapMarkersLayer) return;
-        state.mapMarkersLayer.clearLayers();
-
-        const active = state.waypoints.filter((w) => w.selected);
-        if (active.length === 0) return;
-
-        const bounds = [];
-        active.slice(0, 500).forEach((w) => {
-          const iconHtml = renderOsmandPinSvg(w.outputSym, w.outputShape, w.outputColor, 30);
-          const divIcon = L.divIcon({
-            html: iconHtml,
-            className: 'osmand-leaflet-icon',
-            iconSize: [30, 30],
-            iconAnchor: [15, 15],
-          });
-          const marker = L.marker([w.lat, w.lon], { icon: divIcon });
-          marker.bindPopup(
-            `<strong>${escapeXml(w.outputName)}</strong><br/>` +
-            `<span style="font-size:12px;color:#059669;">Ebene: ${escapeXml(w.outputLayer)}</span><br/>` +
-            `<span style="font-size:11px;color:#64748b;">${w.lat.toFixed(5)}, ${w.lon.toFixed(5)}</span>`
-          );
-          marker.addTo(state.mapMarkersLayer);
-          bounds.push([w.lat, w.lon]);
-        });
-
-        if (bounds.length > 0) {
-          state.map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
-        }
-      }
-
-      // =========================================================================
-      // 7. GPX XML GENERATOR & DOWNLOAD HELPER
-      // =========================================================================
-      function buildEnrichedDescription(wpt) {
-        const parts = [];
-        if (wpt.isFound) parts.push('Status: Gefunden');
-        else if (wpt.status) parts.push(`Status: ${wpt.status}`);
-        if (wpt.cacheType) parts.push(`Typ: ${wpt.cacheType}`);
-        if (wpt.difficulty && wpt.terrain) parts.push(`D${wpt.difficulty} / T${wpt.terrain}`);
-        if (wpt.container) parts.push(`Größe: ${wpt.container}`);
-
-        const lines = [];
-        if (parts.length > 0) lines.push(parts.join(' | '));
-        if (wpt.hints) lines.push(`Hinweise: ${wpt.hints}`);
-        if (wpt.rawDesc && !lines.join(' ').includes(wpt.rawDesc)) {
-          lines.push(wpt.rawDesc);
-        }
-        return lines.join('\n');
-      }
-
-      function generateGpxXml(waypointsList, docName = 'OsmAnd Geocaching Ebenen') {
-        const includeOsmandExt = document.getElementById('optOsmandExtensions').checked;
-        const enrichDesc = document.getElementById('optEnrichDesc').checked;
-
-        const lines = [
-          '<?xml version="1.0" encoding="utf-8"?>',
-          '<gpx xmlns="http://www.topografix.com/GPX/1/1" xmlns:osmand="https://osmand.net" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.1" creator="GPX Layer &amp; Symbol Studio for OsmAnd" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">',
-          '  <metadata>',
-          `    <name>${escapeXml(docName)}</name>`,
-          '  </metadata>',
-        ];
-
-        waypointsList.forEach((w) => {
-          const descText = enrichDesc ? buildEnrichedDescription(w) : (w.rawDesc || '');
-          lines.push(`  <wpt lat="${w.lat.toFixed(6)}" lon="${w.lon.toFixed(6)}">`);
-          lines.push(`    <name>${escapeXml(w.outputName)}</name>`);
-          if (w.rawCmt) lines.push(`    <cmt>${escapeXml(w.rawCmt)}</cmt>`);
-          if (descText) lines.push(`    <desc>${escapeXml(descText)}</desc>`);
-          if (w.outputSym) lines.push(`    <sym>${escapeXml(w.outputSym)}</sym>`);
-          if (w.outputLayer) lines.push(`    <type>${escapeXml(w.outputLayer)}</type>`);
-
-          if (includeOsmandExt) {
-            lines.push('    <extensions>');
-            if (w.outputColor) lines.push(`      <osmand:color>${escapeXml(w.outputColor)}</osmand:color>`);
-            if (w.outputSym) lines.push(`      <osmand:icon>${escapeXml(w.outputSym.toLowerCase().replace(/\s+/g, '_'))}</osmand:icon>`);
-            if (w.outputShape) lines.push(`      <osmand:background>${escapeXml(w.outputShape)}</osmand:background>`);
-            lines.push('    </extensions>');
+        for (var i = 0; i < state.waypoints.length; i++) {
+          var w = state.waypoints[i];
+          if (w.isFound) foundCount++;
+          var st = resolveWaypointStyle(w);
+          if (!st.excluded) {
+            exportedCount++;
+            activeLayers[st.layerName] = true;
           }
+        }
 
-          lines.push('  </wpt>');
-        });
+        statsBar.innerHTML =
+          '<span class="stat-pill">' + exportedCount + ' Export-Wegpunkte</span>' +
+          '<span class="stat-pill">' + Object.keys(activeLayers).length + ' OsmAnd-Ebenen</span>' +
+          '<span class="stat-pill">' + foundCount + ' Gefunden</span>';
 
-        lines.push('</gpx>');
-        return lines.join('\n');
+        if (state.waypoints.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:18px;">Keine Wegpunkte vorhanden.</td></tr>';
+          return;
+        }
+
+        var maxPreview = Math.min(state.waypoints.length, 250);
+        for (var wi = 0; wi < maxPreview; wi++) {
+          (function(wpt) {
+            var st = resolveWaypointStyle(wpt);
+            var tr = document.createElement("tr");
+            if (st.excluded) tr.style.opacity = "0.45";
+
+            var tdPin = document.createElement("td");
+            var pin = document.createElement("div");
+            pin.className = "osmand-pin " + st.shape;
+            pin.style.background = st.color;
+            pin.textContent = st.iconObj.glyph;
+            tdPin.appendChild(pin);
+
+            var tdName = document.createElement("td");
+            tdName.innerHTML = "<strong>" + escapeHtml(st.displayName) + "</strong>" +
+              (wpt.cmt ? '<div style="font-size:11.5px; color:var(--muted);">' + escapeHtml(wpt.cmt) + "</div>" : "");
+
+            var tdCoord = document.createElement("td");
+            tdCoord.style.fontFamily = "monospace";
+            tdCoord.style.fontSize = "12px";
+            tdCoord.textContent = wpt.lat.toFixed(5) + ", " + wpt.lon.toFixed(5);
+
+            var tdLayer = document.createElement("td");
+            tdLayer.textContent = st.excluded ? "(Wird beim Export übersprungen)" : st.layerName;
+
+            var tdFound = document.createElement("td");
+            var btnFound = document.createElement("button");
+            btnFound.type = "button";
+            btnFound.className = "btn btn-sm";
+            btnFound.textContent = wpt.isFound ? "✓ Gefunden" : "Offen";
+            if (wpt.isFound) {
+              btnFound.style.background = "#dcfce7";
+              btnFound.style.borderColor = "#86efac";
+              btnFound.style.color = "#166534";
+            }
+            btnFound.addEventListener("click", function() {
+              wpt.isFound = !wpt.isFound;
+              renderWaypointsTable();
+            });
+            tdFound.appendChild(btnFound);
+
+            tr.appendChild(tdPin);
+            tr.appendChild(tdName);
+            tr.appendChild(tdCoord);
+            tr.appendChild(tdLayer);
+            tr.appendChild(tdFound);
+            tbody.appendChild(tr);
+          })(state.waypoints[wi]);
+        }
+
+        if (state.waypoints.length > maxPreview) {
+          var moreTr = document.createElement("tr");
+          moreTr.innerHTML = '<td colspan="5" style="text-align:center; color:var(--muted);">… und ' + (state.waypoints.length - maxPreview) + ' weitere Wegpunkte (alle werden vollständig exportiert).</td>';
+          tbody.appendChild(moreTr);
+        }
+      }
+
+      function renderAll() {
+        renderFoundPreview();
+        renderMappingTable();
+        renderWaypointsTable();
+      }
+
+      // ---------- EXPORT FÜR OSMAND ----------
+      function escapeXml(str) {
+        return String(str || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&apos;");
+      }
+
+      function escapeHtml(str) {
+        return String(str || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function generateGpxDocument(itemsWithStyle, docTitle) {
+        var lines = [];
+        lines.push('<?xml version="1.0" encoding="utf-8"?>');
+        lines.push('<gpx version="1.1" creator="GPX Layer &amp; Symbol Studio for OsmAnd" xmlns="http://www.topografix.com/GPX/1/1" xmlns:osmand="https://osmand.net">');
+        lines.push("  <metadata>");
+        lines.push("    <name>" + escapeXml(docTitle) + "</name>");
+        lines.push("  </metadata>");
+
+        for (var i = 0; i < itemsWithStyle.length; i++) {
+          var item = itemsWithStyle[i];
+          var w = item.wpt;
+          var st = item.style;
+          lines.push('  <wpt lat="' + w.lat.toFixed(6) + '" lon="' + w.lon.toFixed(6) + '">');
+          lines.push("    <name>" + escapeXml(st.displayName) + "</name>");
+          if (w.cmt) lines.push("    <cmt>" + escapeXml(w.cmt) + "</cmt>");
+          if (w.desc) lines.push("    <desc>" + escapeXml(w.desc) + "</desc>");
+          lines.push("    <sym>" + escapeXml(st.iconObj.sym) + "</sym>");
+          lines.push("    <type>" + escapeXml(st.layerName) + "</type>");
+          lines.push("    <extensions>");
+          lines.push("      <osmand:color>" + escapeXml(st.color) + "</osmand:color>");
+          lines.push("      <osmand:background>" + escapeXml(st.shape) + "</osmand:background>");
+          lines.push("    </extensions>");
+          lines.push("  </wpt>");
+        }
+
+        lines.push("</gpx>");
+        return lines.join("\n");
       }
 
       function triggerDownload(blob, filename) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
         a.href = url;
         a.download = filename;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        setTimeout(function() {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 1500);
       }
 
-      // =========================================================================
-      // 8. FILE IMPORT HANDLERS (GPX & ZIP via Endung + Magic-Bytes)
-      // =========================================================================
-      async function detectFileFormat(file) {
-        const nameLower = (file.name || '').toLowerCase();
-        if (nameLower.endsWith('.zip')) return 'zip';
-
-        const headerSlice = file.slice(0, 512);
-        const buffer = await headerSlice.arrayBuffer();
-        const bytes = new Uint8Array(buffer);
-
-        // ZIP Magic Bytes: PK\x03\x04
-        if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && (bytes[2] === 0x03 || bytes[2] === 0x05 || bytes[2] === 0x07)) {
-          return 'zip';
+      function exportCombinedGpx() {
+        var items = [];
+        for (var i = 0; i < state.waypoints.length; i++) {
+          var st = resolveWaypointStyle(state.waypoints[i]);
+          if (!st.excluded) items.push({ wpt: state.waypoints[i], style: st });
         }
-
-        const headerText = new TextDecoder('utf-8', { fatal: false }).decode(bytes).replace(/^\uFEFF/, '').trim();
-        if (
-          nameLower.endsWith('.gpx') ||
-          nameLower.endsWith('.xml') ||
-          headerText.startsWith('<?xml') ||
-          headerText.includes('<gpx')
-        ) {
-          return 'gpx';
+        if (items.length === 0) {
+          window.appLog("WARN", "Export abgebrochen: Keine aktiven Wegpunkte vorhanden.");
+          return;
         }
-
-        return 'unknown';
+        var xml = generateGpxDocument(items, "OsmAnd Geocaching Ebenen");
+        var blob = new Blob([xml], { type: "application/gpx+xml;charset=utf-8" });
+        triggerDownload(blob, "osmand_geocaching_ebenen.gpx");
+        window.appLog("SUCCESS", "Kombinierte GPX-Datei mit " + items.length + " Wegpunkten exportiert.");
       }
 
-      async function handleFiles(fileList) {
-        if (!fileList || fileList.length === 0) return;
-
-        let totalImported = 0;
-        let processedFilesCount = 0;
-        appendLog(`${fileList.length} Datei(en) zum Einlesen ausgewählt.`, 'info');
-        setProgress(5, 'Dateiformat wird geprüft...', 'running');
-        await yieldToBrowser();
-
-        for (let i = 0; i < fileList.length; i++) {
-          const file = fileList[i];
-          const displayName = file.name || `Importierte_Datei_${i + 1}.gpx`;
-
-          try {
-            appendLog(`Lese Datei "${displayName}" (${formatBytes(file.size)})...`, 'info');
-            if (file.size === 0) {
-              appendLog(`Datei "${displayName}" ist leer (0 Bytes) – übersprungen.`, 'warn');
-              showToast(`Die Datei "${displayName}" ist leer (0 Bytes).`, 'error');
-              continue;
-            }
-
-            setProgress(10, `Erkenne Dateityp für "${displayName}"...`, 'running');
-            const format = await detectFileFormat(file);
-            appendLog(`Erkanntes Format für "${displayName}": ${format.toUpperCase()}`, 'info');
-
-            if (format === 'gpx') {
-              setProgress(15, `Lese Textinhalt von "${displayName}"...`, 'running');
-              const text = await file.text();
-              const cleanText = text.replace(/^\uFEFF/, '').trim();
-              const pts = await parseGpxStringAsync(cleanText, displayName, 20, 78);
-              if (pts.length === 0) {
-                appendLog(`Keine gültigen <wpt>-Wegpunkte in "${displayName}" gefunden.`, 'warn');
-                showToast(`Keine gültigen <wpt>-Wegpunkte in "${displayName}" gefunden.`, 'error');
-                continue;
-              }
-              state.waypoints.push(...pts);
-              if (!state.loadedFiles.includes(displayName)) {
-                state.loadedFiles.push(displayName);
-              }
-              totalImported += pts.length;
-              processedFilesCount++;
-            } else if (format === 'zip') {
-              if (typeof JSZip === 'undefined') {
-                appendLog('JSZip-Bibliothek nicht verfügbar (Offline?). ZIP kann nicht entpackt werden.', 'error');
-                showToast('JSZip-Bibliothek nicht verfügbar. Bitte entpacke die GPX-Dateien vorher.', 'error');
-                continue;
-              }
-              setProgress(15, `Entpacke ZIP-Archiv "${displayName}"...`, 'running');
-              await yieldToBrowser();
-              const zip = await JSZip.loadAsync(file);
-              const gpxEntries = Object.keys(zip.files).filter(
-                (entryName) => !zip.files[entryName].dir && (entryName.toLowerCase().endsWith('.gpx') || entryName.toLowerCase().endsWith('.xml'))
-              );
-
-              appendLog(`${gpxEntries.length} GPX/XML-Datei(en) im ZIP-Archiv gefunden.`, gpxEntries.length > 0 ? 'info' : 'warn');
-              if (gpxEntries.length === 0) {
-                showToast(`Keine .gpx-Dateien im ZIP-Archiv "${displayName}" gefunden.`, 'error');
-                continue;
-              }
-
-              let zipPtsCount = 0;
-              for (let eIdx = 0; eIdx < gpxEntries.length; eIdx++) {
-                const entryName = gpxEntries[eIdx];
-                const cleanEntryName = entryName.split('/').pop();
-                const startPct = 20 + (eIdx / gpxEntries.length) * 55;
-                const endPct = 20 + ((eIdx + 1) / gpxEntries.length) * 55;
-                appendLog(`Extrahiere "${cleanEntryName}" aus ZIP...`, 'info');
-                const xmlText = await zip.files[entryName].async('string');
-                const cleanXml = xmlText.replace(/^\uFEFF/, '').trim();
-                const pts = await parseGpxStringAsync(cleanXml, cleanEntryName, startPct, endPct);
-                state.waypoints.push(...pts);
-                zipPtsCount += pts.length;
-              }
-
-              if (zipPtsCount === 0) {
-                appendLog(`Die GPX-Dateien in "${displayName}" enthielten keine Wegpunkte.`, 'warn');
-                showToast(`Die GPX-Dateien in "${displayName}" enthielten keine Wegpunkte.`, 'error');
-                continue;
-              }
-
-              totalImported += zipPtsCount;
-              processedFilesCount++;
-              if (!state.loadedFiles.includes(displayName)) {
-                state.loadedFiles.push(displayName);
-              }
-            } else {
-              appendLog(`Unbekanntes Dateiformat für "${displayName}" – erwartet wird GPX-XML oder ZIP.`, 'error');
-              showToast(`"${displayName}" wurde nicht als GPX-XML oder ZIP-Archiv erkannt.`, 'error');
-            }
-          } catch (err) {
-            const msg = err && err.message ? err.message : `Fehler beim Lesen von "${displayName}"`;
-            appendLog(msg, 'error');
-            setProgress(100, msg, 'error');
-            showToast(msg, 'error');
-          }
+      function exportLayeredZip() {
+        var byLayer = {};
+        var total = 0;
+        for (var i = 0; i < state.waypoints.length; i++) {
+          var st = resolveWaypointStyle(state.waypoints[i]);
+          if (st.excluded) continue;
+          if (!byLayer[st.layerName]) byLayer[st.layerName] = [];
+          byLayer[st.layerName].push({ wpt: state.waypoints[i], style: st });
+          total++;
         }
+        if (total === 0) {
+          window.appLog("WARN", "ZIP-Export abgebrochen: Keine aktiven Wegpunkte vorhanden.");
+          return;
+        }
+        var files = [];
+        var layerNames = Object.keys(byLayer);
+        for (var li = 0; li < layerNames.length; li++) {
+          var ln = layerNames[li];
+          var safeFile = ln.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g, "_").replace(/^_+|_+$/g, "") || ("Ebene_" + (li + 1));
+          files.push({
+            name: safeFile + ".gpx",
+            content: generateGpxDocument(byLayer[ln], ln)
+          });
+        }
+        var zipBlob = buildZipBlob(files);
+        triggerDownload(zipBlob, "osmand_geocaching_ebenen.zip");
+        window.appLog("SUCCESS", "ZIP-Archiv mit " + files.length + " Ebenen-Dateien (" + total + " Wegpunkte) exportiert.");
+      }
 
-        if (totalImported > 0) {
-          await applyRulesToAllWaypointsAsync(false);
-          showToast(`${totalImported} Wegpunkte aus ${processedFilesCount} Datei(en) erfolgreich importiert!`, 'success');
-        } else {
-          setProgress(0, 'Import ohne gültige Wegpunkte beendet – siehe Log.', 'error');
+      // ---------- DEMO-DATEN ----------
+      function loadDemoData() {
+        var demoXml = [
+          '<?xml version="1.0" encoding="utf-8"?>',
+          '<gpx version="1.1" creator="Demo" xmlns="http://www.topografix.com/GPX/1/1" xmlns:groundspeak="http://www.groundspeak.com/cache/1/0/1">',
+          '  <wpt lat="48.681800" lon="9.234700"><name>GCAT8R1</name><cmt>D4 / T2 | what3words-Rätsel</cmt><sym>Geocache</sym><type>Geocache|Unknown Cache</type><groundspeak:cache><groundspeak:name>Das pOny HoTte</groundspeak:name><groundspeak:type>Unknown Cache</groundspeak:type><groundspeak:difficulty>4</groundspeak:difficulty><groundspeak:terrain>2</groundspeak:terrain></groundspeak:cache></wpt>',
+          '  <wpt lat="48.685417" lon="9.305467"><name>GC4FR22</name><cmt>D3 / T2 | Worträtsel</cmt><sym>Geocache Found</sym><type>Geocache|Unknown Cache</type><groundspeak:cache><groundspeak:name>Die Weichsel</groundspeak:name><groundspeak:type>Unknown Cache</groundspeak:type><groundspeak:difficulty>3</groundspeak:difficulty><groundspeak:terrain>2</groundspeak:terrain></groundspeak:cache></wpt>',
+          '  <wpt lat="48.675200" lon="9.218900"><name>GC9DEMO1</name><cmt>D1.5 / T1.5 | Traditioneller Cache</cmt><sym>Geocache</sym><type>Geocache|Traditional Cache</type><groundspeak:cache><groundspeak:name>Filder-Aussicht</groundspeak:name><groundspeak:type>Traditional Cache</groundspeak:type><groundspeak:difficulty>1.5</groundspeak:difficulty><groundspeak:terrain>1.5</groundspeak:terrain></groundspeak:cache></wpt>',
+          '  <wpt lat="48.679100" lon="9.225400"><name>GC9DEMO2</name><cmt>D2.5 / T2 | Multi-Runde</cmt><sym>Geocache</sym><type>Geocache|Multi-cache</type><groundspeak:cache><groundspeak:name>Rund um Bernhausen</groundspeak:name><groundspeak:type>Multi-cache</groundspeak:type><groundspeak:difficulty>2.5</groundspeak:difficulty><groundspeak:terrain>2</groundspeak:terrain></groundspeak:cache></wpt>',
+          '  <wpt lat="48.674500" lon="9.217000"><name>PK9DEMO1</name><cmt>Wanderparkplatz</cmt><sym>Parking Area</sym><type>Waypoint|Parking Area</type></wpt>',
+          '</gpx>'
+        ].join("\n");
+
+        var parsed = parseGpxXml(demoXml, "demo_filderstadt.gpx");
+        state.waypoints = parsed;
+        state.categoryConfigs = {};
+        syncCategories();
+        renderAll();
+        setStatus("ok", "Demo-GPX geladen (" + parsed.length + " Beispiel-Wegpunkte).", 100);
+        window.appLog("SUCCESS", "Demo-GPX erfolgreich geladen (" + parsed.length + " Wegpunkte, inkl. 1 Gefunden-Cache).");
+      }
+
+      // ---------- EVENT-LISTENER REGISTRIEREN ----------
+      var fileInput = document.getElementById("file-input");
+      var dropzone = document.getElementById("dropzone");
+
+      function onFileInputTriggered() {
+        var files = fileInput.files;
+        if (files && files.length > 0) {
+          handleFiles(files).finally(function() {
+            try { fileInput.value = ""; } catch (e) {}
+          });
         }
       }
 
-      async function importRawGpxTextAsync(rawXml, sourceLabel) {
-        const cleaned = (rawXml || '').replace(/^\uFEFF/, '').trim();
-        appendLog(`Verarbeite eingefügten Text (${formatBytes(cleaned.length)})...`, 'info');
-        setProgress(10, 'Eingefügter GPX-Code wird geprüft...', 'running');
-        await yieldToBrowser();
+      fileInput.addEventListener("change", onFileInputTriggered);
+      fileInput.addEventListener("input", onFileInputTriggered);
 
-        if (!cleaned) {
-          appendLog('Textfeld ist leer – Abbruch.', 'warn');
-          setProgress(0, 'Bereit – Textfeld war leer.', 'idle');
-          showToast('Bitte füge zuerst GPX-XML-Code in das Textfeld ein.', 'error');
-          return false;
-        }
-        if (!cleaned.includes('<gpx') && !cleaned.includes('<wpt')) {
-          appendLog('Kein <gpx>- oder <wpt>-Tag im eingefügten Text erkannt.', 'error');
-          setProgress(100, 'Fehler: Kein gültiger GPX-XML-Inhalt erkannt.', 'error');
-          showToast('Der eingefügte Text enthält kein gültiges GPX-Format (<gpx> / <wpt>).', 'error');
-          return false;
-        }
-
-        try {
-          const safeSource = (sourceLabel || 'Zwischenablage_Import').trim();
-          const pts = await parseGpxStringAsync(cleaned, safeSource, 20, 78);
-          if (pts.length === 0) {
-            appendLog('Keine gültigen <wpt>-Wegpunkte im eingefügten XML gefunden.', 'warn');
-            setProgress(0, 'Keine Wegpunkte im GPX-Text gefunden.', 'error');
-            showToast('Im eingefügten GPX-Code wurden keine <wpt>-Wegpunkte gefunden.', 'error');
-            return false;
-          }
-          state.waypoints.push(...pts);
-          const badgeName = `${safeSource}.gpx`;
-          if (!state.loadedFiles.includes(badgeName)) {
-            state.loadedFiles.push(badgeName);
-          }
-          await applyRulesToAllWaypointsAsync(false);
-          showToast(`${pts.length} Wegpunkte aus dem GPX-Text übernommen!`, 'success');
-          return true;
-        } catch (err) {
-          const msg = err && err.message ? err.message : 'Fehler beim Parsen des eingefügten GPX-Codes.';
-          appendLog(msg, 'error');
-          setProgress(100, msg, 'error');
-          showToast(msg, 'error');
-          return false;
-        }
-      }
-
-      // =========================================================================
-      // 9. EVENT LISTENERS & INITIALIZATION
-      // =========================================================================
-      document.addEventListener('DOMContentLoaded', () => {
-        appendLog('GPX Layer & Symbol Studio initialisiert. Bereit für Dateien oder GPX-Text.', 'info');
-
-        // Log Panel Controls
-        document.getElementById('btnToggleLogPanel').addEventListener('click', () => {
-          document.getElementById('liveLogWrapper').classList.toggle('hidden');
-        });
-
-        document.getElementById('logFilterInput').addEventListener('input', (e) => {
-          const q = e.target.value.trim().toLowerCase();
-          const rows = document.getElementById('liveLogConsole').children;
-          for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            if (!q || (row.dataset.rawText && row.dataset.rawText.includes(q))) {
-              row.classList.remove('hidden');
-            } else {
-              row.classList.add('hidden');
-            }
-          }
-        });
-
-        document.getElementById('btnClearLog').addEventListener('click', () => {
-          document.getElementById('liveLogConsole').innerHTML = '';
-          logCounter = 0;
-          appendLog('Protokoll geleert.', 'info');
-        });
-
-        document.getElementById('btnCopyLog').addEventListener('click', (e) => {
-          const btn = e.currentTarget;
-          const text = document.getElementById('liveLogConsole').innerText;
-          const textarea = document.createElement('textarea');
-          textarea.value = text;
-          textarea.style.position = 'fixed';
-          textarea.style.opacity = '0';
-          document.body.appendChild(textarea);
-          textarea.select();
-          try {
-            document.execCommand('copy');
-            const origText = btn.textContent;
-            btn.textContent = '✓ Kopiert!';
-            btn.classList.add('bg-emerald-800', 'text-emerald-200');
-            setTimeout(() => {
-              btn.textContent = origText;
-              btn.classList.remove('bg-emerald-800', 'text-emerald-200');
-            }, 2000);
-            showToast('Diagnose-Protokoll kopiert!', 'success');
-          } catch (err) {
-            showToast('Kopieren des Logs fehlgeschlagen.', 'error');
-          }
-          document.body.removeChild(textarea);
-        });
-
-        // Dark Mode Toggle
-        const btnTheme = document.getElementById('btnThemeToggle');
-        btnTheme.addEventListener('click', () => {
-          document.documentElement.classList.toggle('dark');
-        });
-
-        // Demo-GPX Button
-        document.getElementById('btnLoadDemo').addEventListener('click', async () => {
-          try {
-            appendLog('Lade integrierte Demo-GPX-Daten...', 'info');
-            const pts = await parseGpxStringAsync(DEMO_GPX_XML, 'Geocaching_Wissensdatenbank_Demo.gpx', 20, 75);
-            state.waypoints = pts;
-            state.loadedFiles = ['Geocaching_Wissensdatenbank_Demo.gpx'];
-            await applyRulesToAllWaypointsAsync(true);
-            showToast(`${pts.length} Demo-Wegpunkte geladen!`, 'success');
-          } catch (err) {
-            appendLog(`Demo-Import fehlgeschlagen: ${err.message}`, 'error');
-            showToast('Fehler beim Laden der Demo-Daten.', 'error');
-          }
-        });
-
-        // Reset Button
-        document.getElementById('btnResetAll').addEventListener('click', () => {
-          state.waypoints = [];
-          state.loadedFiles = [];
-          state.categoryMappings = {};
-          document.getElementById('fileInput').value = '';
-          setProgress(0, 'Arbeitsbereich geleert – bereit für neuen Import.', 'idle');
-          appendLog('Alle geladenen Wegpunkte und Ebenen zurückgesetzt.', 'info');
-          renderAll();
-          showToast('Arbeitsbereich geleert.', 'info');
-        });
-
-        // File Input & Drag-and-Drop
-        const fileInput = document.getElementById('fileInput');
-        const dropZone = document.getElementById('dropZone');
-
-        fileInput.addEventListener('change', (e) => {
-          handleFiles(e.target.files);
-          e.target.value = '';
-        });
-
-        // Copy & Paste GPX-Text Panel Listeners
-        const pastePanel = document.getElementById('pasteXmlPanel');
-        const pasteChevron = document.getElementById('pasteXmlChevron');
-        const pasteTextarea = document.getElementById('gpxPasteTextarea');
-
-        document.getElementById('btnTogglePasteXml').addEventListener('click', () => {
-          const isHidden = pastePanel.classList.contains('hidden');
-          if (isHidden) {
-            pastePanel.classList.remove('hidden');
-            pasteChevron.classList.add('rotate-180');
-            pasteTextarea.focus();
-          } else {
-            pastePanel.classList.add('hidden');
-            pasteChevron.classList.remove('rotate-180');
-          }
-        });
-
-        document.getElementById('btnPasteFromClipboard').addEventListener('click', async () => {
-          if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
-            try {
-              const clipText = await navigator.clipboard.readText();
-              if (clipText) {
-                pasteTextarea.value = clipText;
-                appendLog(`Text aus Zwischenablage eingefügt (${formatBytes(clipText.length)}).`, 'info');
-                showToast('Inhalt aus der Zwischenablage eingefügt.', 'info');
-              } else {
-                showToast('Die Zwischenablage ist leer.', 'error');
-              }
-              return;
-            } catch (err) {
-              appendLog('Direkter Clipboard-Zugriff durch Browser eingeschränkt – manuelles Einfügen im Textfeld nutzen.', 'warn');
-            }
-          }
-          pasteTextarea.focus();
-          showToast('Direkter Zugriff blockiert: Tippe in das Textfeld und wähle „Einfügen“.', 'info');
-        });
-
-        document.getElementById('btnClearPasteXml').addEventListener('click', () => {
-          pasteTextarea.value = '';
-          pasteTextarea.focus();
-        });
-
-        document.getElementById('btnImportPastedXml').addEventListener('click', async () => {
-          const sourceName = document.getElementById('gpxPasteSourceName').value;
-          const ok = await importRawGpxTextAsync(pasteTextarea.value, sourceName);
-          if (ok) {
-            pasteTextarea.value = '';
-          }
-        });
-
-        ['dragenter', 'dragover'].forEach((evt) => {
-          dropZone.addEventListener(evt, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropZone.classList.add('border-emerald-500', 'bg-emerald-50/40', 'dark:bg-emerald-950/30');
-          });
-        });
-
-        ['dragleave', 'drop'].forEach((evt) => {
-          dropZone.addEventListener(evt, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropZone.classList.remove('border-emerald-500', 'bg-emerald-50/40', 'dark:bg-emerald-950/30');
-          });
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-          if (e.dataTransfer && e.dataTransfer.files) {
-            handleFiles(e.dataTransfer.files);
-          }
-        });
-
-        // Option Controls Listeners
-        document.getElementById('optGroupMode').addEventListener('change', (e) => {
-          const singleWrap = document.getElementById('customSingleLayerWrap');
-          if (e.target.value === 'single') singleWrap.classList.remove('hidden');
-          else singleWrap.classList.add('hidden');
-          applyRulesToAllWaypointsAsync(true);
-        });
-
-        document.getElementById('optSingleLayerName').addEventListener('change', () => applyRulesToAllWaypointsAsync(true));
-        document.getElementById('optUsePrefix').addEventListener('change', () => applyRulesToAllWaypointsAsync(true));
-        document.getElementById('optPrefixText').addEventListener('change', () => applyRulesToAllWaypointsAsync(true));
-
-        document.getElementById('optSymbolMode').addEventListener('change', (e) => {
-          const fixedWrap = document.getElementById('fixedSymbolWrap');
-          if (e.target.value === 'fixed') fixedWrap.classList.remove('hidden');
-          else fixedWrap.classList.add('hidden');
-          applyRulesToAllWaypointsAsync(false);
-        });
-
-        document.getElementById('optFixedSymbol').addEventListener('change', () => applyRulesToAllWaypointsAsync(false));
-        document.getElementById('optNameFormat').addEventListener('change', () => applyRulesToAllWaypointsAsync(false));
-        document.getElementById('optOsmandExtensions').addEventListener('change', () => updateStats());
-        document.getElementById('optArchivedHandling').addEventListener('change', () => {
-          state.waypoints.forEach((w) => { w.selected = true; });
-          applyRulesToAllWaypointsAsync(true);
-        });
-
-        // Found Caches Controls Listeners
-        updateFoundLivePreview();
-        document.getElementById('optFoundEnable').addEventListener('change', (e) => {
-          const body = document.getElementById('foundOptionsBody');
-          if (e.target.checked) body.classList.remove('hidden');
-          else body.classList.add('hidden');
-          state.waypoints.forEach((w) => { w.selected = true; });
-          applyRulesToAllWaypointsAsync(true);
-        });
-
-        document.getElementById('optFoundMode').addEventListener('change', (e) => {
-          const layerWrap = document.getElementById('foundLayerNameWrap');
-          if (e.target.value === 'separate_layer') layerWrap.classList.remove('hidden');
-          else layerWrap.classList.add('hidden');
-          state.waypoints.forEach((w) => { w.selected = true; });
-          applyRulesToAllWaypointsAsync(true);
-        });
-
-        ['optFoundLayerName', 'optFoundSym', 'optFoundShape', 'optFoundColor', 'optFoundPrefix'].forEach((id) => {
-          document.getElementById(id).addEventListener('change', () => {
-            applyRulesToAllWaypointsAsync(false);
-          });
-        });
-
-        document.getElementById('btnReapplyRules').addEventListener('click', () => {
-          applyRulesToAllWaypointsAsync(true);
-          showToast('Regeln wurden auf alle Wegpunkte neu angewendet.', 'info');
-        });
-
-        // Filter & Search Listeners
-        document.getElementById('filterLayer').addEventListener('change', () => renderWaypointsTable());
-        document.getElementById('filterSearch').addEventListener('input', () => renderWaypointsTable());
-
-        document.getElementById('checkAllVisible').addEventListener('change', (e) => {
-          const checked = e.target.checked;
-          const visible = getFilteredWaypoints();
-          visible.forEach((w) => { w.selected = checked; });
-          renderWaypointsTable();
-          updateStats();
-          if (state.mapVisible) updateMapMarkers();
-        });
-
-        // Map Toggle
-        document.getElementById('btnToggleMap').addEventListener('click', () => {
-          state.mapVisible = !state.mapVisible;
-          const wrapper = document.getElementById('mapWrapper');
-          const text = document.getElementById('mapToggleText').querySelector('span');
-          const chevron = document.getElementById('mapChevron');
-
-          if (state.mapVisible) {
-            wrapper.classList.remove('hidden');
-            text.textContent = 'Karte ausblenden';
-            chevron.classList.add('rotate-180');
-            initMapIfNeeded();
-            setTimeout(() => {
-              if (state.map) state.map.invalidateSize();
-              updateMapMarkers();
-            }, 100);
-          } else {
-            wrapper.classList.add('hidden');
-            text.textContent = 'Karte einblenden';
-            chevron.classList.remove('rotate-180');
-          }
-        });
-
-        // Export: Combined GPX
-        document.getElementById('btnExportCombinedGpx').addEventListener('click', async () => {
-          const active = state.waypoints.filter((w) => w.selected);
-          if (active.length === 0) {
-            showToast('Keine aktiven Wegpunkte zum Exportieren ausgewählt.', 'error');
-            return;
-          }
-          setProgress(40, `Generiere kombinierte OsmAnd-GPX (${active.length} Wegpunkte)...`, 'running');
-          appendLog(`Starte Export einer kombinierten GPX-Datei für ${active.length} aktive Wegpunkte...`, 'info');
-          await yieldToBrowser();
-
-          const xml = generateGpxXml(active, 'OsmAnd Geocaching Ebenen');
-          const blob = new Blob([xml], { type: 'application/gpx+xml;charset=utf-8' });
-          triggerDownload(blob, 'osmand_geocaching_ebenen.gpx');
-
-          setProgress(100, `Export abgeschlossen: osmand_geocaching_ebenen.gpx (${formatBytes(blob.size)})`, 'done');
-          appendLog(`Download ausgelöst: osmand_geocaching_ebenen.gpx (${formatBytes(blob.size)}).`, 'success');
-          showToast(`GPX mit ${active.length} Punkten heruntergeladen!`, 'success');
-        });
-
-        // Export: Per-Layer ZIP
-        document.getElementById('btnExportZip').addEventListener('click', async () => {
-          const active = state.waypoints.filter((w) => w.selected);
-          if (active.length === 0) {
-        // Export: Per-Layer ZIP (100% nativ ohne CDN)
-        document.getElementById('btnExportZip').addEventListener('click', async () => {
-          const active = state.waypoints.filter((w) => w.selected);
-          if (active.length === 0) {
-            showToast('Keine aktiven Wegpunkte zum Exportieren ausgewählt.', 'error');
-            return;
-          }
-
-          setProgress(25, 'Gruppiere Wegpunkte nach Ebenen für ZIP-Export...', 'running');
-          appendLog(`Starte nativen ZIP-Export für ${active.length} aktive Wegpunkte...`, 'step');
-          await yieldToBrowser();
-
-          const byLayer = {};
-          active.forEach((w) => {
-            const layer = w.outputLayer || 'Standard';
-            if (!byLayer[layer]) byLayer[layer] = [];
-            byLayer[layer].push(w);
-          });
-
-          const layerNames = Object.keys(byLayer);
-          const zipFilesPayload = [];
-
-          layerNames.forEach((layerName) => {
-            const safeFilename = layerName.replace(/[^a-zA-Z0-9äöüÄÖÜß_\- ]/g, '').trim().replace(/\s+/g, '_') || 'Ebene';
-            const xml = generateGpxXml(byLayer[layerName], layerName);
-            zipFilesPayload.push({ filename: `${safeFilename}.gpx`, content: xml });
-            appendLog(`Ebene "${layerName}" (${byLayer[layerName].length} Punkte) -> ${safeFilename}.gpx`, 'zip');
-          });
-
-          setProgress(75, 'Erstelle ZIP-Archiv...', 'running');
-          await yieldToBrowser();
-
-          const zipBlob = createZipBlobNative(zipFilesPayload);
-          triggerDownload(zipBlob, 'osmand_ebenen_tracks.zip');
-
-          setProgress(100, `ZIP-Export abgeschlossen: osmand_ebenen_tracks.zip (${formatBytes(zipBlob.size)})`, 'done');
-          appendLog(`Download ausgelöst: osmand_ebenen_tracks.zip (${layerNames.length} Dateien, ${formatBytes(zipBlob.size)}).`, 'success');
-          showToast(`ZIP-Archiv mit ${layerNames.length} Ebenen-Dateien erstellt!`, 'success');
-        });
-
-        // XML Preview Modal
-        const xmlModal = document.getElementById('xmlModal');
-        document.getElementById('btnPreviewXml').addEventListener('click', () => {
-          const active = state.waypoints.filter((w) => w.selected);
-          if (active.length === 0) {
-            showToast('Keine aktiven Wegpunkte für die Vorschau vorhanden.', 'error');
-            return;
-          }
-          document.getElementById('xmlPreviewContent').textContent = generateGpxXml(active);
-          xmlModal.classList.remove('hidden');
-        });
-
-        document.getElementById('btnCloseXmlModal').addEventListener('click', () => {
-          xmlModal.classList.add('hidden');
-        });
-
-        xmlModal.addEventListener('click', (e) => {
-          if (e.target === xmlModal) xmlModal.classList.add('hidden');
-        });
-
-        document.getElementById('btnCopyXml').addEventListener('click', () => {
-          const text = document.getElementById('xmlPreviewContent').textContent;
-          const textarea = document.createElement('textarea');
-          textarea.value = text;
-          textarea.style.position = 'fixed';
-          textarea.style.opacity = '0';
-          document.body.appendChild(textarea);
-          textarea.select();
-          try {
-            document.execCommand('copy');
-            showToast('GPX-XML in die Zwischenablage kopiert!', 'success');
-          } catch (err) {
-            showToast('Kopieren fehlgeschlagen.', 'error');
-          }
-          document.body.removeChild(textarea);
-        });
+      dropzone.addEventListener("dragover", function(e) {
+        e.preventDefault();
+        dropzone.classList.add("dragover");
       });
+      dropzone.addEventListener("dragleave", function() {
+        dropzone.classList.remove("dragover");
+      });
+      dropzone.addEventListener("drop", function(e) {
+        e.preventDefault();
+        dropzone.classList.remove("dragover");
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          handleFiles(e.dataTransfer.files);
+        }
+      });
+
+      document.getElementById("btn-load-demo").addEventListener("click", loadDemoData);
+
+      document.getElementById("btn-clear-all").addEventListener("click", function() {
+        state.waypoints = [];
+        state.categoryConfigs = {};
+        renderAll();
+        setStatus("", "Alle geladenen Daten zurückgesetzt.", 0);
+        window.appLog("INFO", "Arbeitsbereich zurückgesetzt.");
+      });
+
+      document.getElementById("btn-toggle-paste").addEventListener("click", function() {
+        var box = document.getElementById("paste-box");
+        var arrow = document.getElementById("paste-arrow");
+        var isOpen = box.classList.toggle("open");
+        arrow.textContent = isOpen ? "▲" : "▼";
+      });
+
+      document.getElementById("btn-parse-paste").addEventListener("click", function() {
+        var txt = document.getElementById("xml-textarea").value;
+        if (!txt || txt.trim().length === 0) {
+          window.appLog("WARN", "Das Textfeld für GPX-XML ist leer.");
+          return;
+        }
+        try {
+          var wpts = parseGpxXml(txt, "eingefuegter_text.gpx");
+          if (wpts.length === 0) {
+            window.appLog("WARN", "Keine <wpt>-Wegpunkte im eingefügten Text gefunden.");
+            setStatus("err", "Keine Wegpunkte im Text gefunden.", 0);
+            return;
+          }
+          state.waypoints = state.waypoints.concat(wpts);
+          syncCategories();
+          renderAll();
+          setStatus("ok", wpts.length + " Wegpunkt(e) aus Text eingefügt.", 100);
+          window.appLog("SUCCESS", wpts.length + " Wegpunkt(e) aus eingefügtem GPX-Text verarbeitet.");
+        } catch (err) {
+          window.appLog("ERROR", err.message);
+          setStatus("err", "Fehler beim Verarbeiten des GPX-Textes.", 0);
+        }
+      });
+
+      document.getElementById("btn-paste-clipboard").addEventListener("click", function() {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          navigator.clipboard.readText().then(function(clip) {
+            document.getElementById("xml-textarea").value = clip;
+            window.appLog("INFO", "Text aus Zwischenablage eingefügt (" + clip.length + " Zeichen).");
+          }).catch(function(err) {
+            window.appLog("WARN", "Zwischenablage-Zugriff blockiert: " + err.message);
+          });
+        } else {
+          window.appLog("WARN", "Zwischenablage-API in diesem Browser nicht verfügbar – bitte manuell einfügen.");
+        }
+      });
+
+      document.getElementById("btn-toggle-log").addEventListener("click", function() {
+        var panel = document.getElementById("log-panel");
+        panel.style.display = (panel.style.display === "none") ? "block" : "none";
+      });
+
+      document.getElementById("btn-copy-log").addEventListener("click", function() {
+        var text = logEntriesEl.innerText;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function() {
+            window.appLog("INFO", "Protokoll in die Zwischenablage kopiert.");
+          });
+        }
+      });
+
+      document.getElementById("btn-clear-log").addEventListener("click", function() {
+        logEntriesEl.innerHTML = "";
+        logCounter = 0;
+        logCountEl.textContent = "0";
+      });
+
+      document.getElementById("group-mode").addEventListener("change", function() {
+        syncCategories();
+        renderAll();
+      });
+      document.getElementById("name-format").addEventListener("change", renderWaypointsTable);
+      document.getElementById("layer-prefix").addEventListener("input", renderWaypointsTable);
+      document.getElementById("found-mode").addEventListener("change", renderWaypointsTable);
+      document.getElementById("found-shape").addEventListener("change", function() {
+        renderFoundPreview();
+        renderWaypointsTable();
+      });
+      document.getElementById("found-color").addEventListener("input", function() {
+        renderFoundPreview();
+        renderWaypointsTable();
+      });
+
+      document.getElementById("btn-export-gpx").addEventListener("click", exportCombinedGpx);
+      document.getElementById("btn-export-zip").addEventListener("click", exportLayeredZip);
+
+      // Start-Initialisierung
+      renderFoundPreview();
+      window.appLog("INFO", "GPX Layer & Symbol Studio vollständig initialisiert. Alle Event-Listener aktiv.");
     })();
   </script>
 </body>
