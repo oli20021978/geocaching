@@ -753,7 +753,7 @@
           <div id="found-pin-preview" class="osmand-pin circle" style="background:#16a34a;">☺</div>
           <div>
             <div style="font-weight:700; font-size:13.5px;">Gefundene Caches (<code>Geocache Found</code>) extra markieren</div>
-            <div style="font-size:12px; color:#78350f;">Live-Vorschau links: Form, Farbe und Icon für alle als „Gefunden“ erkannten Caches.</div>
+            <div style="font-size:12px; color:#78350f;">Erkennt ausschließlich eigene Funde (<code>sym="Geocache Found"</code> / <code>found="true"</code>) – ignoriert fremde Community-Logs.</div>
           </div>
         </div>
         <div class="found-controls">
@@ -940,12 +940,12 @@
         "Mega-Event Cache": { layer: "Mega-Event", color: "#be123c", shape: "octagon", icon: "event" },
         "Parking Area": { layer: "Parkplätze", color: "#475569", shape: "square", icon: "parking" },
         "Trailhead": { layer: "Startpunkte", color: "#0d9488", shape: "square", icon: "trailhead" },
-        "Stages of a Multicache": { layer: "Multi-Stationen", color: "#ea580c", shape: "square", icon: "flag" },
-        "Physical Stage": { layer: "Physische Stationen", color: "#ea580c", shape: "square", icon: "flag" },
-        "Virtual Stage": { layer: "Virtuelle Stationen", color: "#0284c7", shape: "circle", icon: "flag" },
+        "Stages of a Multicache": { layer: "Multi-Stationen", color: "#ea580c", shape: "square", icon: "special_flag" },
+        "Physical Stage": { layer: "Physische Stationen", color: "#ea580c", shape: "square", icon: "special_flag" },
+        "Virtual Stage": { layer: "Virtuelle Stationen", color: "#0284c7", shape: "circle", icon: "special_flag" },
         "Final Location": { layer: "Final-Koordinaten", color: "#dc2626", shape: "octagon", icon: "special_star" },
         "Reference Point": { layer: "Referenzpunkte", color: "#64748b", shape: "circle", icon: "reference" },
-        "Additional Waypoint": { layer: "Zusatzwegpunkte", color: "#64748b", shape: "square", icon: "flag" },
+        "Additional Waypoint": { layer: "Zusatzwegpunkte", color: "#64748b", shape: "square", icon: "special_flag" },
         "Gelöst": { layer: "Gelöst", color: "#15803d", shape: "circle", icon: "special_star" },
         "Später": { layer: "Später", color: "#d97706", shape: "octagon", icon: "puzzle" },
         "Archiv": { layer: "Archiv", color: "#6b7280", shape: "octagon", icon: "archive" }
@@ -1182,7 +1182,7 @@
         });
       }
 
-      // ---------- GPX PARSER ----------
+      // ---------- GPX PARSER (OHNE COMMUNITY-LOG-BUG) ----------
       function childText(parent, localName) {
         if (!parent || !parent.children) return "";
         for (var i = 0; i < parent.children.length; i++) {
@@ -1203,6 +1203,43 @@
           if (ln === localName) return all[i];
         }
         return null;
+      }
+
+      function detectOwnFoundStatus(wptEl, sym, existingType, cacheEl) {
+        var symLower = (sym || "").trim().toLowerCase();
+        var typeLower = (existingType || "").trim().toLowerCase();
+
+        // 1. Eindeutiger GPX-<sym> Marker (z. B. "Geocache Found", aber NICHT "Not Found" / "Unfound")
+        if (
+          symLower === "geocache found" ||
+          symLower === "found" ||
+          (symLower.indexOf("found") !== -1 && symLower.indexOf("not found") === -1 && symLower.indexOf("unfound") === -1)
+        ) {
+          return true;
+        }
+
+        // 2. Expliziter GPX-<type> Marker
+        if (typeLower === "geocache found") {
+          return true;
+        }
+
+        // 3. Explizite c:geo / Locus / Groundspeak Extension-Flags (ignoriert fremde Community-Logs!)
+        var foundEl = findDescendantByLocalName(wptEl, "found");
+        if (foundEl) {
+          var val = (foundEl.textContent || "").trim().toLowerCase();
+          if (val === "true" || val === "1" || val === "yes") {
+            return true;
+          }
+        }
+
+        if (cacheEl) {
+          var foundAttr = cacheEl.getAttribute("found");
+          if (foundAttr && (foundAttr.toLowerCase() === "true" || foundAttr === "1")) {
+            return true;
+          }
+        }
+
+        return false;
       }
 
       function parseGpxXml(xmlString, sourceName) {
@@ -1234,30 +1271,15 @@
           var cacheType = "";
           var difficulty = "";
           var terrain = "";
-          var isFound = false;
-
-          if (sym.toLowerCase().indexOf("found") !== -1) {
-            isFound = true;
-          }
 
           if (cacheEl) {
             cacheName = childText(cacheEl, "name");
             cacheType = childText(cacheEl, "type");
             difficulty = childText(cacheEl, "difficulty");
             terrain = childText(cacheEl, "terrain");
-
-            var logsEl = findDescendantByLocalName(cacheEl, "logs");
-            if (logsEl) {
-              var logNodes = logsEl.children;
-              for (var li = 0; li < logNodes.length; li++) {
-                var lType = childText(logNodes[li], "type").toLowerCase();
-                if (lType === "found it" || lType === "attended" || lType === "webcam photo taken") {
-                  isFound = true;
-                  break;
-                }
-              }
-            }
           }
+
+          var isFound = detectOwnFoundStatus(w, sym, existingType, cacheEl);
 
           var code = rawName;
           var title = cacheName || cmt || rawName;
@@ -1856,7 +1878,7 @@
         var demoXml = [
           '<?xml version="1.0" encoding="utf-8"?>',
           '<gpx version="1.1" creator="Demo" xmlns="http://www.topografix.com/GPX/1/1" xmlns:groundspeak="http://www.groundspeak.com/cache/1/0/1">',
-          '  <wpt lat="48.681800" lon="9.234700"><name>GCAT8R1</name><cmt>D4 / T2 | what3words-Rätsel</cmt><sym>Geocache</sym><type>Geocache|Unknown Cache</type><groundspeak:cache><groundspeak:name>Das pOny HoTte</groundspeak:name><groundspeak:type>Unknown Cache</groundspeak:type><groundspeak:difficulty>4</groundspeak:difficulty><groundspeak:terrain>2</groundspeak:terrain></groundspeak:cache></wpt>',
+          '  <wpt lat="48.681800" lon="9.234700"><name>GCAT8R1</name><cmt>D4 / T2 | what3words-Rätsel</cmt><sym>Geocache</sym><type>Geocache|Unknown Cache</type><groundspeak:cache><groundspeak:name>Das pOny HoTte</groundspeak:name><groundspeak:type>Unknown Cache</groundspeak:type><groundspeak:difficulty>4</groundspeak:difficulty><groundspeak:terrain>2</groundspeak:terrain><groundspeak:logs><groundspeak:log><groundspeak:type>Found it</groundspeak:type></groundspeak:log></groundspeak:logs></groundspeak:cache></wpt>',
           '  <wpt lat="48.685417" lon="9.305467"><name>GC4FR22</name><cmt>D3 / T2 | Worträtsel</cmt><sym>Geocache Found</sym><type>Geocache|Unknown Cache</type><groundspeak:cache><groundspeak:name>Die Weichsel</groundspeak:name><groundspeak:type>Unknown Cache</groundspeak:type><groundspeak:difficulty>3</groundspeak:difficulty><groundspeak:terrain>2</groundspeak:terrain></groundspeak:cache></wpt>',
           '  <wpt lat="48.675200" lon="9.218900"><name>GC9DEMO1</name><cmt>D1.5 / T1.5 | Traditioneller Cache</cmt><sym>Geocache</sym><type>Geocache|Traditional Cache</type><groundspeak:cache><groundspeak:name>Filder-Aussicht</groundspeak:name><groundspeak:type>Traditional Cache</groundspeak:type><groundspeak:difficulty>1.5</groundspeak:difficulty><groundspeak:terrain>1.5</groundspeak:terrain></groundspeak:cache></wpt>',
           '  <wpt lat="48.679100" lon="9.225400"><name>GC9DEMO2</name><cmt>D2.5 / T2 | Multi-Runde</cmt><sym>Geocache</sym><type>Geocache|Multi-cache</type><groundspeak:cache><groundspeak:name>Rund um Bernhausen</groundspeak:name><groundspeak:type>Multi-cache</groundspeak:type><groundspeak:difficulty>2.5</groundspeak:difficulty><groundspeak:terrain>2</groundspeak:terrain></groundspeak:cache></wpt>',
@@ -1870,7 +1892,7 @@
         syncCategories();
         renderAll();
         setStatus("ok", "Demo-GPX geladen (" + parsed.length + " Beispiel-Wegpunkte).", 100);
-        window.appLog("SUCCESS", "Demo-GPX erfolgreich geladen (" + parsed.length + " Wegpunkte, inkl. 1 Gefunden-Cache).");
+        window.appLog("SUCCESS", "Demo-GPX erfolgreich geladen (" + parsed.length + " Wegpunkte, inkl. 1 eigenem Fund und ignoriertem Fremd-Log).");
       }
 
       // ---------- EVENT-LISTENER REGISTRIEREN ----------
@@ -2021,7 +2043,7 @@
 
       // Start-Initialisierung
       renderFoundPreview();
-      window.appLog("INFO", "GPX Layer & Symbol Studio vollständig initialisiert. Alle Event-Listener aktiv.");
+      window.appLog("INFO", "GPX Layer & Symbol Studio vollständig initialisiert (Fund-Erkennung ohne Fremd-Logs).");
     })();
   </script>
 </body>
