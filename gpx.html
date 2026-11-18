@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>GPX Layer &amp; Symbol Studio für OsmAnd (v2.2)</title>
+  <title>GPX Layer &amp; Symbol Studio für OsmAnd (v2.3)</title>
   <script>
     // Inline Global Error-Catcher im <head>, fängt jeden Syntax-, Skript- oder Laufzeitfehler ab
     window.__earlyErrors = [];
@@ -627,7 +627,7 @@
       <div class="brand">
         <div class="brand-icon">G</div>
         <div>
-          <h1 class="brand-title">GPX Layer &amp; Symbol Studio <span style="font-size:12px; font-weight:700; background:var(--primary-soft); color:var(--primary); padding:2px 8px; border-radius:999px; vertical-align:middle; margin-left:6px;">v2.2</span></h1>
+          <h1 class="brand-title">GPX Layer &amp; Symbol Studio <span style="font-size:12px; font-weight:700; background:var(--primary-soft); color:var(--primary); padding:2px 8px; border-radius:999px; vertical-align:middle; margin-left:6px;">v2.3</span></h1>
           <p class="brand-sub">Ebenen, Symbole &amp; Fund-Markierungen für OsmAnd aufbereiten</p>
         </div>
       </div>
@@ -653,7 +653,7 @@
               <li>Öffne dein Repository auf <strong>github.com</strong> (z. B. <code>oli20021978/landkreis...</code>).</li>
               <li>Tippe auf die bestehende Datei <code>gpx.html</code> &rarr; oben rechts auf das <strong>Stift-Symbol (Edit)</strong> (oder <em>Add file &rarr; Upload files</em>, um sie zu überschreiben).</li>
               <li>Füge den neuen Code ein und bestätige unten mit <strong>Commit changes</strong>.</li>
-              <li>Warte ca. <strong>30–60 Sekunden</strong> und lade die Webseite neu. <em>Kontrolle:</em> Oben im Titel steht jetzt das grüne Badge <strong>v2.2</strong>.</li>
+              <li>Warte ca. <strong>30–60 Sekunden</strong> und lade die Webseite neu. <em>Kontrolle:</em> Oben im Titel steht jetzt das grüne Badge <strong>v2.3</strong>.</li>
             </ol>
           </div>
           <div>
@@ -944,22 +944,25 @@
 
       // ---------- UMFANGREICHE OSMAND & GPX ICON-BIBLIOTHEK ----------
       var ICON_OPTIONS = [
-        { id: "geocaching", label: "Geocache (Schatzbox)", glyph: "📦", sym: "Geocache", osmandIcon: "geocaching" },
-        { id: "geocache_found", label: "Gefunden (Smiley)", glyph: "☺", sym: "Geocache Found", osmandIcon: "special_smiley" },
-        { id: "special_star", label: "Stern / Favorit", glyph: "★", sym: "Star", osmandIcon: "special_star" },
-        { id: "special_flag", label: "Flagge / Stage / Ziel", glyph: "⚑", sym: "Flag, Blue", osmandIcon: "special_flag" },
-        { id: "puzzle", label: "Mystery / Fragezeichen", glyph: "?", sym: "Puzzle", osmandIcon: "special_information" },
-        { id: "multi", label: "Multi-Cache / Stufen", glyph: "❖", sym: "Multi-Cache", osmandIcon: "special_number_2" },
-        { id: "earth", label: "Earthcache / Globus", glyph: "🌍", sym: "Earthcache", osmandIcon: "tourism_viewpoint" },
-        { id: "parking", label: "Parkplatz (P)", glyph: "P", sym: "Parking Area", osmandIcon: "parking" },
-        { id: "trailhead", label: "Startpunkt / Wandern", glyph: "🥾", sym: "Trail Head", osmandIcon: "sport_hiking" },
-        { id: "reference", label: "Referenzpunkt / Punkt", glyph: "◎", sym: "Waypoint", osmandIcon: "special_dot" },
-        { id: "camera", label: "Virtual / Kamera / Foto", glyph: "📷", sym: "Scenic Area", osmandIcon: "photo_camera" },
-        { id: "event", label: "Event / Treffpunkt", glyph: "🎉", sym: "Event", osmandIcon: "special_meeting_point" },
-        { id: "pin", label: "Stecknadel / Marker", glyph: "📍", sym: "Pin, Red", osmandIcon: "special_marker" },
-        { id: "heart", label: "Herz / Highlight", glyph: "♥", sym: "Heart", osmandIcon: "special_heart" },
-        { id: "danger", label: "Achtung / T5 / Gefahr", glyph: "⚠", sym: "Danger Area", osmandIcon: "special_alert" },
-        { id: "archive", label: "Archiv / Deaktiviert", glyph: "✕", sym: "Skull and Crossbones", osmandIcon: "special_cancel" }
+        { id: "geocaching",     label: "Geocache / Marker",      glyph: "📦", osmandIcon: "special_marker" },
+        { id: "geocache_found", label: "Gefunden (Haken)",       glyph: "☺",  osmandIcon: "special_symbol_check_mark" },
+        { id: "special_star",   label: "Stern / Favorit",        glyph: "★",  osmandIcon: "special_star" },
+        { id: "special_flag",   label: "Flagge / Stage / Ziel",  glyph: "⚑",  osmandIcon: "special_flag_stroke" },
+        { id: "puzzle",         label: "Mystery (Fragezeichen)", glyph: "?",  osmandIcon: "special_symbol_question_mark" },
+        { id: "multi",          label: "Multi-Cache (2)",        glyph: "❖",  osmandIcon: "special_number_2" },
+        { id: "earth",          label: "Earthcache (Berg)",      glyph: "🌍", osmandIcon: "mountain" },
+        { id: "parking",        label: "Parkplatz",              glyph: "P",  osmandIcon: "amenity_parking" },
+        { id: "trailhead",      label: "Startpunkt / Wandern",   glyph: "🥾", osmandIcon: "special_trekking" },
+        { id: "reference",      label: "Referenzpunkt",          glyph: "◎",  osmandIcon: "special_bookmark" },
+        { id: "camera",         label: "Virtual / Kamera / Foto",glyph: "📷", osmandIcon: "special_photo_camera" },
+        { id: "event",          label: "Event (Gruppe)",         glyph: "🎉", osmandIcon: "special_people_group" },
+        { id: "pin",            label: "Stecknadel / Marker",    glyph: "📍", osmandIcon: "special_marker" },
+        { id: "heart",          label: "Herz / Highlight",       glyph: "♥",  osmandIcon: "special_heart" },
+        { id: "danger",         label: "Achtung / T5 / Gefahr",  glyph: "⚠",  osmandIcon: "special_symbol_exclamation_mark" },
+        { id: "archive",        label: "Archiv / Deaktiviert",   glyph: "✕",  osmandIcon: "special_symbol_remove" },
+        { id: "castle",         label: "Burg / Lost Place",      glyph: "🏰", osmandIcon: "historic_castle" },
+        { id: "viewpoint",      label: "Aussichtspunkt",         glyph: "🔭", osmandIcon: "tourism_viewpoint" },
+        { id: "cave",           label: "Höhle",                  glyph: "🕳", osmandIcon: "natural_cave_entrance" }
       ];
 
       var DEFAULT_CATEGORY_STYLES = {
@@ -1785,7 +1788,6 @@
       }
 
       function generateGpxDocument(itemsWithStyle, docTitle) {
-        // Sammle eindeutige Gruppen-Definitionen für OsmAnds <osmand:points_groups>
         var groupsMap = {};
         var groupOrder = [];
         for (var gi = 0; gi < itemsWithStyle.length; gi++) {
@@ -1794,7 +1796,7 @@
             groupsMap[stG.layerName] = {
               name: stG.layerName,
               color: normalizeHexColor(stG.color),
-              icon: stG.iconObj.osmandIcon || "geocaching",
+              icon: stG.iconObj.osmandIcon,
               background: stG.shape || "circle"
             };
             groupOrder.push(stG.layerName);
@@ -1802,49 +1804,35 @@
         }
 
         var lines = [];
-        lines.push('<?xml version="1.0" encoding="utf-8"?>');
-        lines.push('<gpx version="1.1" creator="GPX Layer &amp; Symbol Studio for OsmAnd" xmlns="http://www.topografix.com/GPX/1/1" xmlns:osmand="https://osmand.net" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">');
-        lines.push("  <metadata>");
-        lines.push("    <name>" + escapeXml(docTitle) + "</name>");
-        lines.push("  </metadata>");
+        lines.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>');
+        lines.push('<gpx version="1.1" creator="OsmAnd~ 5.0.0" xmlns="http://www.topografix.com/GPX/1/1" xmlns:osmand="https://osmand.net/docs/technical/osmand-file-formats/osmand-gpx" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">');
+        lines.push("  <metadata><name>" + escapeXml(docTitle) + "</name></metadata>");
 
         for (var i = 0; i < itemsWithStyle.length; i++) {
-          var item = itemsWithStyle[i];
-          var w = item.wpt;
-          var st = item.style;
-          var hexColor = normalizeHexColor(st.color);
-          var osmandIcon = st.iconObj.osmandIcon || "geocaching";
-          var bgShape = st.shape || "circle";
-
+          var w = itemsWithStyle[i].wpt;
+          var st = itemsWithStyle[i].style;
           lines.push('  <wpt lat="' + w.lat.toFixed(6) + '" lon="' + w.lon.toFixed(6) + '">');
           lines.push("    <name>" + escapeXml(st.displayName) + "</name>");
           if (w.cmt) lines.push("    <cmt>" + escapeXml(w.cmt) + "</cmt>");
           if (w.desc) lines.push("    <desc>" + escapeXml(w.desc) + "</desc>");
-          lines.push("    <sym>" + escapeXml(st.iconObj.sym) + "</sym>");
           lines.push("    <type>" + escapeXml(st.layerName) + "</type>");
           lines.push("    <extensions>");
-          lines.push("      <osmand:color>" + escapeXml(hexColor) + "</osmand:color>");
-          lines.push("      <osmand:icon>" + escapeXml(osmandIcon) + "</osmand:icon>");
-          lines.push("      <osmand:background>" + escapeXml(bgShape) + "</osmand:background>");
+          lines.push("      <osmand:icon>" + escapeXml(st.iconObj.osmandIcon) + "</osmand:icon>");
+          lines.push("      <osmand:background>" + escapeXml(st.shape || "circle") + "</osmand:background>");
+          lines.push("      <osmand:color>" + escapeXml(normalizeHexColor(st.color)) + "</osmand:color>");
           lines.push("    </extensions>");
           lines.push("  </wpt>");
         }
 
-        // Top-Level OsmAnd Extensions mit <osmand:points_groups> (Standard-Schema von OsmAnd GPX Export/Import)
         lines.push("  <extensions>");
         lines.push("    <osmand:points_groups>");
         for (var k = 0; k < groupOrder.length; k++) {
           var g = groupsMap[groupOrder[k]];
-          lines.push(
-            '      <group name="' + escapeXml(g.name) +
-            '" color="' + escapeXml(g.color) +
-            '" icon="' + escapeXml(g.icon) +
-            '" background="' + escapeXml(g.background) + '" />'
-          );
+          lines.push('      <group name="' + escapeXml(g.name) + '" color="' + escapeXml(g.color) +
+            '" icon="' + escapeXml(g.icon) + '" background="' + escapeXml(g.background) + '"/>');
         }
         lines.push("    </osmand:points_groups>");
         lines.push("  </extensions>");
-
         lines.push("</gpx>");
         return lines.join("\n");
       }
