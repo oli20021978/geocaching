@@ -773,7 +773,7 @@
       </div>
 
       <div class="info-note">
-        <strong>Hinweis zu OsmAnd-Icons:</strong> OsmAnd bietet über 250 interne POI-Icons (<code>&lt;osmand:icon&gt;</code>) sowie die klassischen Garmin/GPX-Symbole (<code>&lt;sym&gt;</code>). Die Auswahl enthält die wichtigsten OsmAnd- &amp; Geocaching-Icons; zusätzlich kannst du im Feld <em>„Eigener Icon-Key“</em> jeden beliebigen offiziellen OsmAnd-Icon-Namen (z. B. <code>special_star</code>, <code>special_flag_stroke</code>, <code>geocaching</code>, <code>parking</code>, <code>historic_castle</code>) direkt eintragen.
+        <strong>OsmAnd-Farben &amp; Icons:</strong> Beim Export schreibt das Studio automatisch den nativen OsmAnd-Gruppenblock (<code>&lt;osmand:points_groups&gt;</code>) in den GPX-Header sowie unpräfigierte (<code>&lt;color&gt;</code>, <code>&lt;icon&gt;</code>, <code>&lt;background&gt;</code>) und <code>osmand:</code>-Tags an jeden Wegpunkt – so übernimmt OsmAnd beim Import <strong>„Als Favoriten“</strong> alle Farben, Formen und Icons direkt ohne Gelb-Fallback.
       </div>
 
       <div class="table-toolbar">
@@ -937,7 +937,7 @@
         "Wherigo Cache": { layer: "Wherigo", color: "#4338ca", shape: "octagon", icon: "puzzle" },
         "Event Cache": { layer: "Event", color: "#be123c", shape: "circle", icon: "event" },
         "Cache In Trash Out Event": { layer: "CITO-Event", color: "#15803d", shape: "circle", icon: "event" },
-        "Mega-Event Cache": { layer: "Mega-Event", color: "#be123c", shape: "star", icon: "event" },
+        "Mega-Event Cache": { layer: "Mega-Event", color: "#be123c", shape: "octagon", icon: "event" },
         "Parking Area": { layer: "Parkplätze", color: "#475569", shape: "square", icon: "parking" },
         "Trailhead": { layer: "Startpunkte", color: "#0d9488", shape: "square", icon: "trailhead" },
         "Stages of a Multicache": { layer: "Multi-Stationen", color: "#ea580c", shape: "square", icon: "flag" },
@@ -1441,7 +1441,6 @@
             excluded = true;
             excludeReason = "Gefundene ausgeblendet";
           } else if (foundMode === "separate") {
-            // Wenn Gefundene in eigene Ebene verschoben werden, richtet sich der Export nach der Gefunden-Einstellung
             excluded = false;
             excludeReason = "";
             layerName = prefix + "Gefunden";
@@ -1702,7 +1701,7 @@
         renderWaypointsTable();
       }
 
-      // ---------- EXPORT FÜR OSMAND ----------
+      // ---------- EXPORT FÜR OSMAND (INKL. POINTS_GROUPS & UNPRÄFIGIERTEN TAGS) ----------
       function escapeXml(str) {
         return String(str || "")
           .replace(/&/g, "&amp;")
@@ -1720,10 +1719,32 @@
           .replace(/"/g, "&quot;");
       }
 
+      function normalizeHexColor(hex) {
+        var c = String(hex || "#15803d").trim();
+        if (c.charAt(0) !== "#") c = "#" + c;
+        return c.toLowerCase();
+      }
+
       function generateGpxDocument(itemsWithStyle, docTitle) {
+        // Sammle eindeutige Gruppen-Definitionen für OsmAnds <osmand:points_groups>
+        var groupsMap = {};
+        var groupOrder = [];
+        for (var gi = 0; gi < itemsWithStyle.length; gi++) {
+          var stG = itemsWithStyle[gi].style;
+          if (!groupsMap[stG.layerName]) {
+            groupsMap[stG.layerName] = {
+              name: stG.layerName,
+              color: normalizeHexColor(stG.color),
+              icon: stG.iconObj.osmandIcon || "geocaching",
+              background: stG.shape || "circle"
+            };
+            groupOrder.push(stG.layerName);
+          }
+        }
+
         var lines = [];
         lines.push('<?xml version="1.0" encoding="utf-8"?>');
-        lines.push('<gpx version="1.1" creator="GPX Layer &amp; Symbol Studio for OsmAnd" xmlns="http://www.topografix.com/GPX/1/1" xmlns:osmand="https://osmand.net">');
+        lines.push('<gpx version="1.1" creator="GPX Layer &amp; Symbol Studio for OsmAnd" xmlns="http://www.topografix.com/GPX/1/1" xmlns:osmand="https://osmand.net" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">');
         lines.push("  <metadata>");
         lines.push("    <name>" + escapeXml(docTitle) + "</name>");
         lines.push("  </metadata>");
@@ -1732,6 +1753,10 @@
           var item = itemsWithStyle[i];
           var w = item.wpt;
           var st = item.style;
+          var hexColor = normalizeHexColor(st.color);
+          var osmandIcon = st.iconObj.osmandIcon || "geocaching";
+          var bgShape = st.shape || "circle";
+
           lines.push('  <wpt lat="' + w.lat.toFixed(6) + '" lon="' + w.lon.toFixed(6) + '">');
           lines.push("    <name>" + escapeXml(st.displayName) + "</name>");
           if (w.cmt) lines.push("    <cmt>" + escapeXml(w.cmt) + "</cmt>");
@@ -1739,14 +1764,30 @@
           lines.push("    <sym>" + escapeXml(st.iconObj.sym) + "</sym>");
           lines.push("    <type>" + escapeXml(st.layerName) + "</type>");
           lines.push("    <extensions>");
-          lines.push("      <osmand:color>" + escapeXml(st.color) + "</osmand:color>");
-          lines.push("      <osmand:background>" + escapeXml(st.shape) + "</osmand:background>");
-          if (st.iconObj.osmandIcon) {
-            lines.push("      <osmand:icon>" + escapeXml(st.iconObj.osmandIcon) + "</osmand:icon>");
-          }
+          lines.push("      <color>" + escapeXml(hexColor) + "</color>");
+          lines.push("      <icon>" + escapeXml(osmandIcon) + "</icon>");
+          lines.push("      <background>" + escapeXml(bgShape) + "</background>");
+          lines.push("      <osmand:color>" + escapeXml(hexColor) + "</osmand:color>");
+          lines.push("      <osmand:icon>" + escapeXml(osmandIcon) + "</osmand:icon>");
+          lines.push("      <osmand:background>" + escapeXml(bgShape) + "</osmand:background>");
           lines.push("    </extensions>");
           lines.push("  </wpt>");
         }
+
+        // Top-Level OsmAnd Extensions mit <osmand:points_groups> (Standard-Schema von OsmAnd GPX Export/Import)
+        lines.push("  <extensions>");
+        lines.push("    <osmand:points_groups>");
+        for (var k = 0; k < groupOrder.length; k++) {
+          var g = groupsMap[groupOrder[k]];
+          lines.push(
+            '      <group name="' + escapeXml(g.name) +
+            '" color="' + escapeXml(g.color) +
+            '" icon="' + escapeXml(g.icon) +
+            '" background="' + escapeXml(g.background) + '" />'
+          );
+        }
+        lines.push("    </osmand:points_groups>");
+        lines.push("  </extensions>");
 
         lines.push("</gpx>");
         return lines.join("\n");
@@ -1778,7 +1819,7 @@
         var xml = generateGpxDocument(items, "OsmAnd Geocaching Ebenen");
         var blob = new Blob([xml], { type: "application/gpx+xml;charset=utf-8" });
         triggerDownload(blob, "osmand_geocaching_ebenen.gpx");
-        window.appLog("SUCCESS", "Kombinierte GPX-Datei mit " + items.length + " Wegpunkten exportiert.");
+        window.appLog("SUCCESS", "Kombinierte GPX-Datei inkl. <osmand:points_groups> mit " + items.length + " Wegpunkten exportiert.");
       }
 
       function exportLayeredZip() {
