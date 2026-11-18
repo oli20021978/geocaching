@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>GPX Layer &amp; Symbol Studio für OsmAnd</title>
+  <title>GPX Layer &amp; Symbol Studio für OsmAnd (v2.1)</title>
   <script>
     // Inline Global Error-Catcher im <head>, fängt jeden Syntax-, Skript- oder Laufzeitfehler ab
     window.__earlyErrors = [];
@@ -627,7 +627,7 @@
       <div class="brand">
         <div class="brand-icon">G</div>
         <div>
-          <h1 class="brand-title">GPX Layer &amp; Symbol Studio</h1>
+          <h1 class="brand-title">GPX Layer &amp; Symbol Studio <span style="font-size:12px; font-weight:700; background:var(--primary-soft); color:var(--primary); padding:2px 8px; border-radius:999px; vertical-align:middle; margin-left:6px;">v2.1</span></h1>
           <p class="brand-sub">Ebenen, Symbole &amp; Fund-Markierungen für OsmAnd aufbereiten</p>
         </div>
       </div>
@@ -639,6 +639,43 @@
   </header>
 
   <main class="container">
+    <!-- ANLEITUNG (AUSKLAPPBAR) -->
+    <section class="card" style="padding: 14px 18px;">
+      <details>
+        <summary style="cursor:pointer; font-weight:700; font-size:15px; color:var(--primary); list-style:none; display:flex; align-items:center; justify-content:space-between;">
+          <span>📖 Kurzanleitung: GitHub aktualisieren &amp; in OsmAnd als Favoriten importieren</span>
+          <span style="font-size:12px; color:var(--muted); font-weight:600;">Aufklappen ▼</span>
+        </summary>
+        <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border); font-size:13.5px; display:flex; flex-direction:column; gap:10px;">
+          <div>
+            <strong>1. Neue Version auf GitHub hochladen:</strong>
+            <ol style="margin:4px 0 0 18px; padding:0;">
+              <li>Öffne dein Repository auf <strong>github.com</strong> (z. B. <code>oli20021978/landkreis...</code>).</li>
+              <li>Tippe auf die bestehende Datei <code>gpx.html</code> &rarr; oben rechts auf das <strong>Stift-Symbol (Edit)</strong> (oder <em>Add file &rarr; Upload files</em>, um sie zu überschreiben).</li>
+              <li>Füge den neuen Code ein und bestätige unten mit <strong>Commit changes</strong>.</li>
+              <li>Warte ca. <strong>30–60 Sekunden</strong> und lade die Webseite neu. <em>Kontrolle:</em> Oben im Titel steht jetzt das grüne Badge <strong>v2.1</strong>.</li>
+            </ol>
+          </div>
+          <div>
+            <strong>2. GPX-Ebenen im Studio einstellen:</strong>
+            <ol style="margin:4px 0 0 18px; padding:0;">
+              <li>Lade deine GPX- oder ZIP-Datei in <strong>Schritt 1</strong>.</li>
+              <li>Deaktiviere unter <strong>Schritt 2</strong> nicht benötigte Zusatzwegpunkte (z. B. <em>Reference Point</em>, <em>Virtual Stage</em>) über den Schalter <strong>Aktiv / Aus</strong>.</li>
+              <li>Passe Ebenenname, Form, Farbe und Icon an und tippe unten auf <strong>„Kombinierte GPX für OsmAnd herunterladen (Favoriten-Ebenen)“</strong>.</li>
+            </ol>
+          </div>
+          <div>
+            <strong>3. Wichtig – In OsmAnd „Als Favoriten“ (NICHT als Track!) importieren:</strong>
+            <ol style="margin:4px 0 0 18px; padding:0;">
+              <li>Tippe im Android-Dateimanager oder in den Browser-Downloads auf <code>osmand_geocaching_ebenen.gpx</code> &rarr; <strong>Öffnen mit OsmAnd</strong>.</li>
+              <li>Wähle im OsmAnd-Dialog zwingend <strong>„Als Favoriten“</strong> (wählst du <em>„Als Track“</em>, färbt OsmAnd alle Punkte gelb und ignoriert die Gruppen-Ordner).</li>
+              <li><em>Kontrolle:</em> Unter <strong>Meine Orte &rarr; Favoriten</strong> erscheinen alle Ebenen (z. B. <code>Geocaching - Traditional</code>, <code>Geocaching - Mystery-Cache</code>) mit deinen gewählten Farben, Formen und Icons.</li>
+            </ol>
+          </div>
+        </div>
+      </details>
+    </section>
+
     <!-- SCHRITT 1: IMPORT -->
     <section class="card">
       <div class="step-header">
