@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>GPX Layer &amp; Symbol Studio für OsmAnd (v2.3)</title>
+  <title>GPX Layer &amp; Symbol Studio für OsmAnd (v2.4)</title>
   <script>
     // Inline Global Error-Catcher im <head>, fängt jeden Syntax-, Skript- oder Laufzeitfehler ab
     window.__earlyErrors = [];
@@ -569,6 +569,8 @@
       clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
     }
 
+    .osmand-pin svg { width: 20px; height: 20px; fill: #ffffff; display: block; }
+
     .stats-bar {
       display: flex;
       flex-wrap: wrap;
@@ -627,7 +629,7 @@
       <div class="brand">
         <div class="brand-icon">G</div>
         <div>
-          <h1 class="brand-title">GPX Layer &amp; Symbol Studio <span style="font-size:12px; font-weight:700; background:var(--primary-soft); color:var(--primary); padding:2px 8px; border-radius:999px; vertical-align:middle; margin-left:6px;">v2.3</span></h1>
+          <h1 class="brand-title">GPX Layer &amp; Symbol Studio <span style="font-size:12px; font-weight:700; background:var(--primary-soft); color:var(--primary); padding:2px 8px; border-radius:999px; vertical-align:middle; margin-left:6px;">v2.4</span></h1>
           <p class="brand-sub">Ebenen, Symbole &amp; Fund-Markierungen für OsmAnd aufbereiten</p>
         </div>
       </div>
@@ -653,7 +655,7 @@
               <li>Öffne dein Repository auf <strong>github.com</strong> (z. B. <code>oli20021978/landkreis...</code>).</li>
               <li>Tippe auf die bestehende Datei <code>gpx.html</code> &rarr; oben rechts auf das <strong>Stift-Symbol (Edit)</strong> (oder <em>Add file &rarr; Upload files</em>, um sie zu überschreiben).</li>
               <li>Füge den neuen Code ein und bestätige unten mit <strong>Commit changes</strong>.</li>
-              <li>Warte ca. <strong>30–60 Sekunden</strong> und lade die Webseite neu. <em>Kontrolle:</em> Oben im Titel steht jetzt das grüne Badge <strong>v2.3</strong>.</li>
+              <li>Warte ca. <strong>30–60 Sekunden</strong> und lade die Webseite neu. <em>Kontrolle:</em> Oben im Titel steht jetzt das grüne Badge <strong>v2.4</strong>.</li>
             </ol>
           </div>
           <div>
@@ -1005,12 +1007,39 @@
         return ICON_OPTIONS[0];
       }
 
+      // ---------- SVG-VORSCHAU-SYMBOLE (Näherung an OsmAnd-Icons, Schlüssel = OsmAnd-ID) ----------
+      var ICON_SVG = {
+        special_marker: '<path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.500A2.500 2.500 0 1 1 12 6.500a2.500 2.500 0 0 1 0 5z"/>',
+        special_symbol_check_mark: '<path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/>',
+        special_star: '<path d="M12 17.3l6.2 3.7-1.6-7 5.4-4.7-7.2-.6L12 2 9.2 8.7 2 9.3l5.5 4.7-1.7 7z"/>',
+        special_flag_stroke: '<path d="M6 3v18h2v-7h11l-2-5 2-5H8V3z"/>',
+        special_symbol_question_mark: '<path d="M11 18h2v-2h-2v2zm1-16C6.500 2 2 6.500 2 12s4.500 10 10 10 10-4.500 10-10S17.500 2 12 2zm0 18c-4.400 0-8-3.600-8-8s3.600-8 8-8 8 3.600 8 8-3.600 8-8 8zm0-14c-2.200 0-4 1.800-4 4h2c0-1.100.9-2 2-2s2 .9 2 2c0 2-3 1.800-3 5h2c0-2.200 3-2.500 3-5 0-2.200-1.800-4-4-4z"/>',
+        special_number_2: '<text x="12" y="18" text-anchor="middle" font-size="17" font-weight="700" font-family="Arial,sans-serif">2</text>',
+        mountain: '<path d="M14 6l-3.750 5 2.850 3.800-1.600 1.200C9.800 13.750 7 10 7 10l-6 8h22L14 6z"/>',
+        amenity_parking: '<text x="12" y="18" text-anchor="middle" font-size="17" font-weight="700" font-family="Arial,sans-serif">P</text>',
+        special_trekking: '<circle cx="13" cy="4.500" r="2"/><path d="M11 21l1.500-6.500L10 12V8.500l-2 1V13h2v-2.500l2.500 2 1.500 3L12.700 21z"/>',
+        special_bookmark: '<path d="M17 3H7c-1.100 0-2 .9-2 2v16l7-3 7 3V5c0-1.100-.9-2-2-2z"/>',
+        special_photo_camera: '<circle cx="12" cy="12" r="3.200"/><path d="M9 2 7.200 4H4c-1.100 0-2 .9-2 2v12c0 1.100.9 2 2 2h16c1.100 0 2-.9 2-2V6c0-1.100-.9-2-2-2h-3.200L15 2H9zm3 15.500a5.500 5.500 0 1 1 0-11 5.500 5.500 0 0 1 0 11z"/>',
+        special_people_group: '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M8 12c-2.700 0-6 1.300-6 4v2h12v-2c0-2.700-3.300-4-6-4zm8 0c-.5 0-1 .1-1.600.2 1 .8 1.600 1.800 1.600 3.800v2h6v-2c0-2.700-3.300-4-6-4z"/>',
+        special_heart: '<path d="M12 21.350l-1.450-1.320C5.400 15.360 2 12.280 2 8.500 2 5.420 4.420 3 7.500 3c1.740 0 3.410.81 4.500 2.090C13.090 3.810 14.760 3 16.500 3 19.580 3 22 5.420 22 8.500c0 3.780-3.400 6.860-8.550 11.540L12 21.350z"/>',
+        special_symbol_exclamation_mark: '<path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>',
+        special_symbol_remove: '<path d="M19 6.400 17.600 5 12 10.600 6.400 5 5 6.400 10.600 12 5 17.600 6.400 19 12 13.400 17.600 19 19 17.600 13.400 12z"/>',
+        historic_castle: '<path d="M3 21V8h3V5h2v3h2V5h4v3h2V5h2v3h3v13h-6v-5a3 3 0 0 0-6 0v5H3z"/>',
+        tourism_viewpoint: '<path d="M12 5C7 5 2.700 8.100 1 12.500 2.700 16.900 7 20 12 20s9.300-3.100 11-7.500C21.300 8.100 17 5 12 5zm0 12.500a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>',
+        natural_cave_entrance: '<path d="M3 21V12a9 9 0 0 1 18 0v9h-5v-8a4 4 0 0 0-8 0v8H3z"/>'
+      };
+
+      function iconSvg(iconObj) {
+        var inner = ICON_SVG[iconObj && iconObj.osmandIcon] || ICON_SVG.special_marker;
+        return '<svg viewBox="0 0 24 24" aria-hidden="true">' + inner + '</svg>';
+      }
+
       function populateIconSelect(selectEl, selectedId) {
         selectEl.innerHTML = "";
         for (var i = 0; i < ICON_OPTIONS.length; i++) {
           var opt = document.createElement("option");
           opt.value = ICON_OPTIONS[i].id;
-          opt.textContent = ICON_OPTIONS[i].glyph + " " + ICON_OPTIONS[i].label;
+          opt.textContent = ICON_OPTIONS[i].label + " · " + ICON_OPTIONS[i].osmandIcon;
           selectEl.appendChild(opt);
         }
         if (selectedId) selectEl.value = selectedId;
@@ -1539,7 +1568,7 @@
 
         prev.className = "osmand-pin " + shape;
         prev.style.background = color;
-        prev.textContent = iconObj.glyph;
+        prev.innerHTML = iconSvg(iconObj);
         prev.style.opacity = (mode === "exclude") ? "0.35" : "1";
       }
 
@@ -1595,7 +1624,7 @@
             var pinDiv = document.createElement("div");
             pinDiv.className = "osmand-pin " + cfg.shape;
             pinDiv.style.background = cfg.color;
-            pinDiv.textContent = iconObj.glyph;
+            pinDiv.innerHTML = iconSvg(iconObj);
             tdPin.appendChild(pinDiv);
 
             // 3. Kategorie
@@ -1648,7 +1677,7 @@
             populateIconSelect(selIcon, cfg.icon);
             selIcon.addEventListener("change", function() {
               cfg.icon = selIcon.value;
-              pinDiv.textContent = getIconObj(cfg.icon).glyph;
+              pinDiv.innerHTML = iconSvg(getIconObj(cfg.icon));
               renderWaypointsTable();
             });
             tdIcon.appendChild(selIcon);
@@ -1710,7 +1739,7 @@
             var pin = document.createElement("div");
             pin.className = "osmand-pin " + st.shape;
             pin.style.background = st.color;
-            pin.textContent = st.iconObj.glyph;
+            pin.innerHTML = iconSvg(st.iconObj);
             tdPin.appendChild(pin);
 
             var tdName = document.createElement("td");
