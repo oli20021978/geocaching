@@ -90,7 +90,7 @@
     }
 
     .header-inner {
-      max-width: 1120px;
+      max-width: 1160px;
       margin: 0 auto;
       display: flex;
       flex-wrap: wrap;
@@ -140,7 +140,7 @@
     }
 
     main.container {
-      max-width: 1120px;
+      max-width: 1160px;
       margin: 16px auto;
       padding: 0 14px;
       display: flex;
@@ -189,7 +189,7 @@
       margin: 0 0 14px 0;
     }
 
-    /* Android-sichere Dropzone: Echtes <input type="file"> liegt transparent über der gesamten Fläche */
+    /* Android-sichere Dropzone */
     .dropzone-wrapper {
       position: relative;
       border: 2px dashed #48a87c;
@@ -450,7 +450,7 @@
     input[type="color"] {
       padding: 2px 4px;
       height: 36px;
-      width: 48px;
+      width: 44px;
       cursor: pointer;
     }
 
@@ -464,7 +464,39 @@
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 12px;
+    }
+
+    .found-preview-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .found-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .info-note {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      color: #0c4a6e;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12.5px;
+      margin-bottom: 12px;
+    }
+
+    .table-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
     }
 
     .table-wrap {
@@ -478,7 +510,7 @@
       width: 100%;
       border-collapse: collapse;
       font-size: 13px;
-      min-width: 680px;
+      min-width: 780px;
     }
 
     th, td {
@@ -501,20 +533,26 @@
       border-bottom: none;
     }
 
+    tr.row-excluded {
+      opacity: 0.48;
+      background: #f9fafb;
+    }
+
     /* Live OsmAnd Pin Vorschau (Kreis, Achteck, Quadrat) */
     .osmand-pin {
-      width: 34px;
-      height: 34px;
+      width: 36px;
+      height: 36px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       color: #ffffff;
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 700;
       box-shadow: 0 2px 5px rgba(0,0,0,0.22);
       border: 2px solid #ffffff;
       flex-shrink: 0;
       user-select: none;
+      transition: all 0.15s ease;
     }
 
     .osmand-pin.circle {
@@ -547,6 +585,11 @@
       font-weight: 700;
     }
 
+    .stat-pill.muted {
+      background: #f1f5f9;
+      color: #475569;
+    }
+
     .export-actions {
       display: flex;
       flex-wrap: wrap;
@@ -554,12 +597,20 @@
       margin-top: 12px;
     }
 
-    .checkbox-row {
-      display: flex;
+    .switch-label {
+      display: inline-flex;
       align-items: center;
-      gap: 8px;
-      font-size: 13px;
+      gap: 6px;
+      cursor: pointer;
       font-weight: 600;
+      font-size: 12.5px;
+      user-select: none;
+    }
+
+    .switch-label input[type="checkbox"] {
+      width: 17px;
+      height: 17px;
+      accent-color: var(--primary);
       cursor: pointer;
     }
   </style>
@@ -668,7 +719,7 @@
         <span class="step-badge">2</span>
         <h2 class="step-title">Ebenen, Symbole &amp; Fund-Markierung anpassen</h2>
       </div>
-      <p class="step-desc">Bestimme vor dem Export, wie deine Wegpunkte in OsmAnd-Favoritengruppen (<code>&lt;type&gt;</code>), Farben und Markerformen aufgeteilt werden.</p>
+      <p class="step-desc">Wähle aus, welche Kategorien exportiert werden sollen, und passe OsmAnd-Ebene (<code>&lt;type&gt;</code>), Form, Farbe sowie Icon an.</p>
 
       <div class="options-grid">
         <div class="field-group">
@@ -696,26 +747,40 @@
         </div>
       </div>
 
+      <!-- GEFUNDENE CACHES MIT VOLLSTÄNDIGER SYMBOL-VORSCHAU -->
       <div class="found-box">
-        <div style="display:flex; align-items:center; gap:12px;">
+        <div class="found-preview-wrap">
           <div id="found-pin-preview" class="osmand-pin circle" style="background:#16a34a;">☺</div>
           <div>
             <div style="font-weight:700; font-size:13.5px;">Gefundene Caches (<code>Geocache Found</code>) extra markieren</div>
-            <div style="font-size:12px; color:#78350f;">Erkennt gefundene Caches automatisch aus GPX-Symbol oder Groundspeak-Logs.</div>
+            <div style="font-size:12px; color:#78350f;">Live-Vorschau links: Form, Farbe und Icon für alle als „Gefunden“ erkannten Caches.</div>
           </div>
         </div>
-        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
-          <select id="found-mode">
-            <option value="separate" selected>Eigene Ebene („Gefunden“) + ✓ Präfix</option>
-            <option value="prefix_only">In Original-Ebene lassen, aber mit ✓ &amp; Grün markieren</option>
-            <option value="exclude">Gefundene beim Export weglassen</option>
+        <div class="found-controls">
+          <select id="found-mode" title="Verhalten für gefundene Caches">
+            <option value="separate" selected>Eigene Ebene („Gefunden“) + ✓</option>
+            <option value="prefix_only">In Original-Ebene lassen + ✓</option>
+            <option value="exclude">Gefundene ausblenden (nicht exportieren)</option>
           </select>
-          <select id="found-shape">
+          <select id="found-shape" title="Markerform für Gefundene">
             <option value="circle" selected>Kreis</option>
             <option value="octagon">Achteck</option>
             <option value="square">Quadrat</option>
           </select>
           <input type="color" id="found-color" value="#16a34a" title="Farbe für Gefundene" />
+          <select id="found-icon" title="Icon für Gefundene"></select>
+        </div>
+      </div>
+
+      <div class="info-note">
+        <strong>Hinweis zu OsmAnd-Icons:</strong> OsmAnd bietet über 250 interne POI-Icons (<code>&lt;osmand:icon&gt;</code>) sowie die klassischen Garmin/GPX-Symbole (<code>&lt;sym&gt;</code>). Die Auswahl enthält die wichtigsten OsmAnd- &amp; Geocaching-Icons; zusätzlich kannst du im Feld <em>„Eigener Icon-Key“</em> jeden beliebigen offiziellen OsmAnd-Icon-Namen (z. B. <code>special_star</code>, <code>special_flag_stroke</code>, <code>geocaching</code>, <code>parking</code>, <code>historic_castle</code>) direkt eintragen.
+      </div>
+
+      <div class="table-toolbar">
+        <span style="font-size:12.5px; font-weight:700; color:var(--muted);">Kategorien &amp; Ebenen-Steuerung:</span>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="btn btn-sm" id="btn-enable-all-cats">Alle einblenden</button>
+          <button type="button" class="btn btn-sm" id="btn-disable-all-cats">Alle ausblenden</button>
         </div>
       </div>
 
@@ -723,18 +788,19 @@
         <table>
           <thead>
             <tr>
+              <th>Export</th>
               <th>Vorschau</th>
               <th>Erkannte Kategorie</th>
               <th>Anzahl</th>
               <th>OsmAnd-Ebene (<code>&lt;type&gt;</code>)</th>
               <th>Form</th>
               <th>Farbe</th>
-              <th>Icon</th>
+              <th>OsmAnd-Icon</th>
             </tr>
           </thead>
           <tbody id="mapping-tbody">
             <tr>
-              <td colspan="7" style="text-align:center; color:var(--muted); padding:18px;">
+              <td colspan="8" style="text-align:center; color:var(--muted); padding:18px;">
                 Noch keine Daten geladen. Lade oben eine GPX/ZIP-Datei oder klicke auf „Demo-GPX laden“.
               </td>
             </tr>
@@ -750,12 +816,13 @@
         <h2 class="step-title">Wegpunkt-Übersicht &amp; OsmAnd-Export</h2>
       </div>
       <div class="stats-bar" id="stats-bar">
-        <span class="stat-pill">0 Wegpunkte</span>
-        <span class="stat-pill">0 Ebenen</span>
+        <span class="stat-pill">0 Export-Wegpunkte</span>
+        <span class="stat-pill">0 OsmAnd-Ebenen</span>
         <span class="stat-pill">0 Gefunden</span>
+        <span class="stat-pill muted">0 Ausgeblendet</span>
       </div>
 
-      <div class="table-wrap" style="max-height: 340px; overflow-y: auto;">
+      <div class="table-wrap" style="max-height: 360px; overflow-y: auto;">
         <table>
           <thead>
             <tr>
@@ -763,7 +830,7 @@
               <th>Code &amp; Name</th>
               <th>Koordinaten</th>
               <th>Ziel-Ebene in OsmAnd</th>
-              <th>Fund-Status</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody id="waypoints-tbody">
@@ -832,39 +899,54 @@
         }
       }
 
-      // Übernehme eventuelle frühe Fehler aus dem <head>
       if (window.__earlyErrors && window.__earlyErrors.length > 0) {
         for (var ei = 0; ei < window.__earlyErrors.length; ei++) {
           window.appLog("ERROR", window.__earlyErrors[ei]);
         }
       }
 
-      // ---------- KONFIGURATION & ICON-BIBLIOTHEK ----------
+      // ---------- UMFANGREICHE OSMAND & GPX ICON-BIBLIOTHEK ----------
       var ICON_OPTIONS = [
-        { id: "geocache", label: "Geocache (Box)", glyph: "📦", sym: "Geocache" },
-        { id: "geocache_found", label: "Gefunden (Smiley)", glyph: "☺", sym: "Geocache Found" },
-        { id: "puzzle", label: "Mystery (Fragezeichen)", glyph: "?", sym: "Puzzle" },
-        { id: "multi", label: "Multi (Stufen)", glyph: "❖", sym: "Multi-Cache" },
-        { id: "earth", label: "Earthcache (Globus)", glyph: "🌍", sym: "Earthcache" },
-        { id: "flag", label: "Wegpunkt / Stage (Flagge)", glyph: "⚑", sym: "Flag, Blue" },
-        { id: "parking", label: "Parkplatz (P)", glyph: "P", sym: "Parking Area" },
-        { id: "star", label: "Highlight / Favorit (Stern)", glyph: "★", sym: "Star" },
-        { id: "archive", label: "Archiv / Kreuz", glyph: "✕", sym: "Skull and Crossbones" }
+        { id: "geocaching", label: "Geocache (Schatzbox)", glyph: "📦", sym: "Geocache", osmandIcon: "geocaching" },
+        { id: "geocache_found", label: "Gefunden (Smiley)", glyph: "☺", sym: "Geocache Found", osmandIcon: "special_smiley" },
+        { id: "special_star", label: "Stern / Favorit", glyph: "★", sym: "Star", osmandIcon: "special_star" },
+        { id: "special_flag", label: "Flagge / Stage / Ziel", glyph: "⚑", sym: "Flag, Blue", osmandIcon: "special_flag_stroke" },
+        { id: "puzzle", label: "Mystery / Fragezeichen", glyph: "?", sym: "Puzzle", osmandIcon: "special_information" },
+        { id: "multi", label: "Multi-Cache / Stufen", glyph: "❖", sym: "Multi-Cache", osmandIcon: "special_number_2" },
+        { id: "earth", label: "Earthcache / Globus", glyph: "🌍", sym: "Earthcache", osmandIcon: "tourism_viewpoint" },
+        { id: "parking", label: "Parkplatz (P)", glyph: "P", sym: "Parking Area", osmandIcon: "parking" },
+        { id: "trailhead", label: "Startpunkt / Trailhead", glyph: "🥾", sym: "Trail Head", osmandIcon: "route_hiking" },
+        { id: "reference", label: "Referenzpunkt / Kreis", glyph: "◎", sym: "Waypoint", osmandIcon: "special_point" },
+        { id: "camera", label: "Virtual / Webcam / Foto", glyph: "📷", sym: "Scenic Area", osmandIcon: "tourism_picnic_site" },
+        { id: "event", label: "Event / Treffpunkt", glyph: "🎉", sym: "Event", osmandIcon: "special_meeting_point" },
+        { id: "pin", label: "Stecknadel / Marker", glyph: "📍", sym: "Pin, Red", osmandIcon: "special_location" },
+        { id: "heart", label: "Herz / Highlight", glyph: "♥", sym: "Heart", osmandIcon: "special_heart" },
+        { id: "danger", label: "Achtung / T5 / Gefahr", glyph: "⚠", sym: "Danger Area", osmandIcon: "special_alert" },
+        { id: "archive", label: "Archiv / Deaktiviert", glyph: "✕", sym: "Skull and Crossbones", osmandIcon: "special_symbol_remove" }
       ];
 
       var DEFAULT_CATEGORY_STYLES = {
-        "Traditional Cache": { layer: "Traditional", color: "#15803d", shape: "circle", icon: "geocache" },
+        "Traditional Cache": { layer: "Traditional", color: "#15803d", shape: "circle", icon: "geocaching" },
         "Multi-cache": { layer: "Multi-Cache", color: "#d97706", shape: "square", icon: "multi" },
         "Unknown Cache": { layer: "Mystery-Cache", color: "#1d4ed8", shape: "octagon", icon: "puzzle" },
         "Mystery Cache": { layer: "Mystery-Cache", color: "#1d4ed8", shape: "octagon", icon: "puzzle" },
         "Earthcache": { layer: "Earthcache", color: "#0284c7", shape: "circle", icon: "earth" },
-        "Virtual Cache": { layer: "Virtual-Cache", color: "#7c3aed", shape: "circle", icon: "star" },
-        "Letterbox Hybrid": { layer: "Letterbox", color: "#0f766e", shape: "square", icon: "geocache" },
+        "Virtual Cache": { layer: "Virtual-Cache", color: "#7c3aed", shape: "circle", icon: "camera" },
+        "Webcam Cache": { layer: "Webcam-Cache", color: "#6d28d9", shape: "circle", icon: "camera" },
+        "Letterbox Hybrid": { layer: "Letterbox", color: "#0f766e", shape: "square", icon: "geocaching" },
         "Wherigo Cache": { layer: "Wherigo", color: "#4338ca", shape: "octagon", icon: "puzzle" },
-        "Event Cache": { layer: "Event", color: "#be123c", shape: "circle", icon: "star" },
+        "Event Cache": { layer: "Event", color: "#be123c", shape: "circle", icon: "event" },
+        "Cache In Trash Out Event": { layer: "CITO-Event", color: "#15803d", shape: "circle", icon: "event" },
+        "Mega-Event Cache": { layer: "Mega-Event", color: "#be123c", shape: "star", icon: "event" },
         "Parking Area": { layer: "Parkplätze", color: "#475569", shape: "square", icon: "parking" },
+        "Trailhead": { layer: "Startpunkte", color: "#0d9488", shape: "square", icon: "trailhead" },
+        "Stages of a Multicache": { layer: "Multi-Stationen", color: "#ea580c", shape: "square", icon: "flag" },
+        "Physical Stage": { layer: "Physische Stationen", color: "#ea580c", shape: "square", icon: "flag" },
+        "Virtual Stage": { layer: "Virtuelle Stationen", color: "#0284c7", shape: "circle", icon: "flag" },
+        "Final Location": { layer: "Final-Koordinaten", color: "#dc2626", shape: "octagon", icon: "special_star" },
+        "Reference Point": { layer: "Referenzpunkte", color: "#64748b", shape: "circle", icon: "reference" },
         "Additional Waypoint": { layer: "Zusatzwegpunkte", color: "#64748b", shape: "square", icon: "flag" },
-        "Gelöst": { layer: "Gelöst", color: "#15803d", shape: "circle", icon: "star" },
+        "Gelöst": { layer: "Gelöst", color: "#15803d", shape: "circle", icon: "special_star" },
         "Später": { layer: "Später", color: "#d97706", shape: "octagon", icon: "puzzle" },
         "Archiv": { layer: "Archiv", color: "#6b7280", shape: "octagon", icon: "archive" }
       };
@@ -881,6 +963,17 @@
           if (ICON_OPTIONS[i].id === iconId) return ICON_OPTIONS[i];
         }
         return ICON_OPTIONS[0];
+      }
+
+      function populateIconSelect(selectEl, selectedId) {
+        selectEl.innerHTML = "";
+        for (var i = 0; i < ICON_OPTIONS.length; i++) {
+          var opt = document.createElement("option");
+          opt.value = ICON_OPTIONS[i].id;
+          opt.textContent = ICON_OPTIONS[i].glyph + " " + ICON_OPTIONS[i].label;
+          selectEl.appendChild(opt);
+        }
+        if (selectedId) selectEl.value = selectedId;
       }
 
       // ---------- PURE-JS ZIP READER (STORE + DEFLATE-RAW) ----------
@@ -923,12 +1016,11 @@
         while (offset + 30 <= uint8.length) {
           var sig = readUint32LE(uint8, offset);
           if (sig !== 0x04034b50) {
-            break; // Ende der Local File Headers erreicht
+            break;
           }
           var flags = readUint16LE(uint8, offset + 6);
           var method = readUint16LE(uint8, offset + 8);
           var compSize = readUint32LE(uint8, offset + 18);
-          var uncompSize = readUint32LE(uint8, offset + 22);
           var nameLen = readUint16LE(uint8, offset + 26);
           var extraLen = readUint16LE(uint8, offset + 28);
 
@@ -937,7 +1029,6 @@
           var fileName = decoder.decode(uint8.subarray(nameStart, nameEnd));
           var dataStart = nameEnd + extraLen;
 
-          // Falls Bit 3 (Data Descriptor) gesetzt ist und compSize == 0, suche nächste Signatur
           if ((flags & 0x0008) !== 0 && compSize === 0) {
             var scan = dataStart;
             while (scan + 4 <= uint8.length) {
@@ -1013,8 +1104,8 @@
           var lv = new DataView(localHeader.buffer);
           lv.setUint32(0, 0x04034b50, true);
           lv.setUint16(4, 20, true);
-          lv.setUint16(6, 0x0800, true); // UTF-8
-          lv.setUint16(8, 0, true); // STORE
+          lv.setUint16(6, 0x0800, true);
+          lv.setUint16(8, 0, true);
           lv.setUint16(10, 0, true);
           lv.setUint16(12, 0, true);
           lv.setUint32(14, crc, true);
@@ -1155,7 +1246,6 @@
             difficulty = childText(cacheEl, "difficulty");
             terrain = childText(cacheEl, "terrain");
 
-            // Prüfe Groundspeak-Logs auf "Found it"
             var logsEl = findDescendantByLocalName(cacheEl, "logs");
             if (logsEl) {
               var logNodes = logsEl.children;
@@ -1178,7 +1268,9 @@
           }
 
           if (!cacheType) {
-            if (existingType && existingType.toLowerCase().indexOf("geocache") === -1) {
+            if (existingType && existingType.indexOf("|") !== -1) {
+              cacheType = existingType.split("|")[1].trim();
+            } else if (existingType && existingType.toLowerCase().indexOf("geocache") === -1) {
               cacheType = existingType;
             } else if (sym.toLowerCase().indexOf("parking") !== -1) {
               cacheType = "Parking Area";
@@ -1235,7 +1327,6 @@
             var bytes = new Uint8Array(buffer);
             window.appLog("INFO", "Header-Bytes (Hex): " + toHex(bytes, 16));
 
-            // Prüfe auf ZIP-Magic-Bytes (50 4B 03 04)
             var isZip = bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4B && bytes[2] === 0x03 && bytes[3] === 0x04;
 
             if (isZip) {
@@ -1294,16 +1385,15 @@
       }
 
       function syncCategories() {
-        var seen = {};
         var colorIdx = 0;
 
         for (var i = 0; i < state.waypoints.length; i++) {
           var key = getRawCategoryKey(state.waypoints[i]);
-          seen[key] = true;
           if (!state.categoryConfigs[key]) {
             var preset = DEFAULT_CATEGORY_STYLES[key];
             if (preset) {
               state.categoryConfigs[key] = {
+                enabled: true,
                 layer: preset.layer,
                 color: preset.color,
                 shape: preset.shape,
@@ -1311,10 +1401,11 @@
               };
             } else {
               state.categoryConfigs[key] = {
+                enabled: true,
                 layer: key.replace(/^Geocaching\s*-\s*/i, ""),
                 color: FALLBACK_COLORS[colorIdx % FALLBACK_COLORS.length],
                 shape: "circle",
-                icon: "geocache"
+                icon: "geocaching"
               };
               colorIdx++;
             }
@@ -1327,10 +1418,11 @@
         var foundMode = document.getElementById("found-mode").value;
         var foundColor = document.getElementById("found-color").value;
         var foundShape = document.getElementById("found-shape").value;
+        var foundIconId = document.getElementById("found-icon").value || "geocache_found";
         var nameFmt = document.getElementById("name-format").value;
 
         var catKey = getRawCategoryKey(wpt);
-        var cfg = state.categoryConfigs[catKey] || { layer: catKey, color: "#15803d", shape: "circle", icon: "geocache" };
+        var cfg = state.categoryConfigs[catKey] || { enabled: true, layer: catKey, color: "#15803d", shape: "circle", icon: "geocaching" };
 
         var dtStr = (wpt.difficulty && wpt.terrain) ? " [D" + wpt.difficulty + "/T" + wpt.terrain + "]" : "";
         var displayName = wpt.code + " – " + wpt.title;
@@ -1341,27 +1433,33 @@
         var color = cfg.color;
         var shape = cfg.shape;
         var iconId = cfg.icon;
-        var excluded = false;
+        var excluded = !cfg.enabled;
+        var excludeReason = !cfg.enabled ? "Kategorie ausgeblendet" : "";
 
         if (wpt.isFound) {
           if (foundMode === "exclude") {
             excluded = true;
+            excludeReason = "Gefundene ausgeblendet";
           } else if (foundMode === "separate") {
+            // Wenn Gefundene in eigene Ebene verschoben werden, richtet sich der Export nach der Gefunden-Einstellung
+            excluded = false;
+            excludeReason = "";
             layerName = prefix + "Gefunden";
             color = foundColor;
             shape = foundShape;
-            iconId = "geocache_found";
+            iconId = foundIconId;
             displayName = "✓ " + displayName;
           } else if (foundMode === "prefix_only") {
             color = foundColor;
             shape = foundShape;
-            iconId = "geocache_found";
+            iconId = foundIconId;
             displayName = "✓ " + displayName;
           }
         }
 
         return {
           excluded: excluded,
+          excludeReason: excludeReason,
           layerName: layerName,
           color: color,
           shape: shape,
@@ -1374,8 +1472,14 @@
         var prev = document.getElementById("found-pin-preview");
         var color = document.getElementById("found-color").value;
         var shape = document.getElementById("found-shape").value;
+        var iconId = document.getElementById("found-icon").value || "geocache_found";
+        var mode = document.getElementById("found-mode").value;
+        var iconObj = getIconObj(iconId);
+
         prev.className = "osmand-pin " + shape;
         prev.style.background = color;
+        prev.textContent = iconObj.glyph;
+        prev.style.opacity = (mode === "exclude") ? "0.35" : "1";
       }
 
       function renderMappingTable() {
@@ -1383,7 +1487,7 @@
         tbody.innerHTML = "";
 
         if (state.waypoints.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:18px;">Noch keine Daten geladen. Lade oben eine GPX/ZIP-Datei oder klicke auf „Demo-GPX laden“.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:18px;">Noch keine Daten geladen. Lade oben eine GPX/ZIP-Datei oder klicke auf „Demo-GPX laden“.</td></tr>';
           return;
         }
 
@@ -1400,8 +1504,32 @@
             var iconObj = getIconObj(cfg.icon);
 
             var tr = document.createElement("tr");
+            if (!cfg.enabled) tr.className = "row-excluded";
 
-            // Vorschau-Pin
+            // 1. Export-Checkbox (Kategorie ein-/ausblenden)
+            var tdToggle = document.createElement("td");
+            var lblSwitch = document.createElement("label");
+            lblSwitch.className = "switch-label";
+            var chk = document.createElement("input");
+            chk.type = "checkbox";
+            chk.checked = cfg.enabled;
+            var spanTxt = document.createElement("span");
+            spanTxt.textContent = cfg.enabled ? "Aktiv" : "Aus";
+            chk.addEventListener("change", function() {
+              cfg.enabled = chk.checked;
+              spanTxt.textContent = cfg.enabled ? "Aktiv" : "Aus";
+              if (cfg.enabled) {
+                tr.classList.remove("row-excluded");
+              } else {
+                tr.classList.add("row-excluded");
+              }
+              renderWaypointsTable();
+            });
+            lblSwitch.appendChild(chk);
+            lblSwitch.appendChild(spanTxt);
+            tdToggle.appendChild(lblSwitch);
+
+            // 2. Vorschau-Pin
             var tdPin = document.createElement("td");
             var pinDiv = document.createElement("div");
             pinDiv.className = "osmand-pin " + cfg.shape;
@@ -1409,15 +1537,15 @@
             pinDiv.textContent = iconObj.glyph;
             tdPin.appendChild(pinDiv);
 
-            // Kategorie
+            // 3. Kategorie
             var tdCat = document.createElement("td");
             tdCat.innerHTML = "<strong>" + escapeHtml(catKey) + "</strong>";
 
-            // Anzahl
+            // 4. Anzahl
             var tdCount = document.createElement("td");
             tdCount.textContent = counts[catKey] + "×";
 
-            // Ebenenname
+            // 5. Ebenenname
             var tdLayer = document.createElement("td");
             var inpLayer = document.createElement("input");
             inpLayer.type = "text";
@@ -1429,7 +1557,7 @@
             });
             tdLayer.appendChild(inpLayer);
 
-            // Form
+            // 6. Form
             var tdShape = document.createElement("td");
             var selShape = document.createElement("select");
             selShape.innerHTML = '<option value="circle">Kreis</option><option value="octagon">Achteck</option><option value="square">Quadrat</option>';
@@ -1441,7 +1569,7 @@
             });
             tdShape.appendChild(selShape);
 
-            // Farbe
+            // 7. Farbe
             var tdColor = document.createElement("td");
             var inpColor = document.createElement("input");
             inpColor.type = "color";
@@ -1453,16 +1581,10 @@
             });
             tdColor.appendChild(inpColor);
 
-            // Icon
+            // 8. OsmAnd Icon
             var tdIcon = document.createElement("td");
             var selIcon = document.createElement("select");
-            for (var oi = 0; oi < ICON_OPTIONS.length; oi++) {
-              var opt = document.createElement("option");
-              opt.value = ICON_OPTIONS[oi].id;
-              opt.textContent = ICON_OPTIONS[oi].label;
-              selIcon.appendChild(opt);
-            }
-            selIcon.value = cfg.icon;
+            populateIconSelect(selIcon, cfg.icon);
             selIcon.addEventListener("change", function() {
               cfg.icon = selIcon.value;
               pinDiv.textContent = getIconObj(cfg.icon).glyph;
@@ -1470,6 +1592,7 @@
             });
             tdIcon.appendChild(selIcon);
 
+            tr.appendChild(tdToggle);
             tr.appendChild(tdPin);
             tr.appendChild(tdCat);
             tr.appendChild(tdCount);
@@ -1489,6 +1612,7 @@
 
         var activeLayers = {};
         var exportedCount = 0;
+        var excludedCount = 0;
         var foundCount = 0;
 
         for (var i = 0; i < state.waypoints.length; i++) {
@@ -1498,13 +1622,16 @@
           if (!st.excluded) {
             exportedCount++;
             activeLayers[st.layerName] = true;
+          } else {
+            excludedCount++;
           }
         }
 
         statsBar.innerHTML =
           '<span class="stat-pill">' + exportedCount + ' Export-Wegpunkte</span>' +
           '<span class="stat-pill">' + Object.keys(activeLayers).length + ' OsmAnd-Ebenen</span>' +
-          '<span class="stat-pill">' + foundCount + ' Gefunden</span>';
+          '<span class="stat-pill">' + foundCount + ' Gefunden</span>' +
+          '<span class="stat-pill muted">' + excludedCount + ' Ausgeblendet</span>';
 
         if (state.waypoints.length === 0) {
           tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:18px;">Keine Wegpunkte vorhanden.</td></tr>';
@@ -1516,7 +1643,7 @@
           (function(wpt) {
             var st = resolveWaypointStyle(wpt);
             var tr = document.createElement("tr");
-            if (st.excluded) tr.style.opacity = "0.45";
+            if (st.excluded) tr.className = "row-excluded";
 
             var tdPin = document.createElement("td");
             var pin = document.createElement("div");
@@ -1535,7 +1662,7 @@
             tdCoord.textContent = wpt.lat.toFixed(5) + ", " + wpt.lon.toFixed(5);
 
             var tdLayer = document.createElement("td");
-            tdLayer.textContent = st.excluded ? "(Wird beim Export übersprungen)" : st.layerName;
+            tdLayer.textContent = st.excluded ? ("Ausgeblendet (" + st.excludeReason + ")") : st.layerName;
 
             var tdFound = document.createElement("td");
             var btnFound = document.createElement("button");
@@ -1564,7 +1691,7 @@
 
         if (state.waypoints.length > maxPreview) {
           var moreTr = document.createElement("tr");
-          moreTr.innerHTML = '<td colspan="5" style="text-align:center; color:var(--muted);">… und ' + (state.waypoints.length - maxPreview) + ' weitere Wegpunkte (alle werden vollständig exportiert).</td>';
+          moreTr.innerHTML = '<td colspan="5" style="text-align:center; color:var(--muted);">… und ' + (state.waypoints.length - maxPreview) + ' weitere Wegpunkte (alle aktiven Punkte werden vollständig exportiert).</td>';
           tbody.appendChild(moreTr);
         }
       }
@@ -1614,6 +1741,9 @@
           lines.push("    <extensions>");
           lines.push("      <osmand:color>" + escapeXml(st.color) + "</osmand:color>");
           lines.push("      <osmand:background>" + escapeXml(st.shape) + "</osmand:background>");
+          if (st.iconObj.osmandIcon) {
+            lines.push("      <osmand:icon>" + escapeXml(st.iconObj.osmandIcon) + "</osmand:icon>");
+          }
           lines.push("    </extensions>");
           lines.push("  </wpt>");
         }
@@ -1642,7 +1772,7 @@
           if (!st.excluded) items.push({ wpt: state.waypoints[i], style: st });
         }
         if (items.length === 0) {
-          window.appLog("WARN", "Export abgebrochen: Keine aktiven Wegpunkte vorhanden.");
+          window.appLog("WARN", "Export abgebrochen: Keine aktiven (eingeblendeten) Wegpunkte vorhanden.");
           return;
         }
         var xml = generateGpxDocument(items, "OsmAnd Geocaching Ebenen");
@@ -1662,7 +1792,7 @@
           total++;
         }
         if (total === 0) {
-          window.appLog("WARN", "ZIP-Export abgebrochen: Keine aktiven Wegpunkte vorhanden.");
+          window.appLog("WARN", "ZIP-Export abgebrochen: Keine aktiven (eingeblendeten) Wegpunkte vorhanden.");
           return;
         }
         var files = [];
@@ -1703,6 +1833,9 @@
       }
 
       // ---------- EVENT-LISTENER REGISTRIEREN ----------
+      var foundIconSelect = document.getElementById("found-icon");
+      populateIconSelect(foundIconSelect, "geocache_found");
+
       var fileInput = document.getElementById("file-input");
       var dropzone = document.getElementById("dropzone");
 
@@ -1741,6 +1874,18 @@
         renderAll();
         setStatus("", "Alle geladenen Daten zurückgesetzt.", 0);
         window.appLog("INFO", "Arbeitsbereich zurückgesetzt.");
+      });
+
+      document.getElementById("btn-enable-all-cats").addEventListener("click", function() {
+        var keys = Object.keys(state.categoryConfigs);
+        for (var i = 0; i < keys.length; i++) state.categoryConfigs[keys[i]].enabled = true;
+        renderAll();
+      });
+
+      document.getElementById("btn-disable-all-cats").addEventListener("click", function() {
+        var keys = Object.keys(state.categoryConfigs);
+        for (var i = 0; i < keys.length; i++) state.categoryConfigs[keys[i]].enabled = false;
+        renderAll();
       });
 
       document.getElementById("btn-toggle-paste").addEventListener("click", function() {
@@ -1813,12 +1958,19 @@
       });
       document.getElementById("name-format").addEventListener("change", renderWaypointsTable);
       document.getElementById("layer-prefix").addEventListener("input", renderWaypointsTable);
-      document.getElementById("found-mode").addEventListener("change", renderWaypointsTable);
+      document.getElementById("found-mode").addEventListener("change", function() {
+        renderFoundPreview();
+        renderWaypointsTable();
+      });
       document.getElementById("found-shape").addEventListener("change", function() {
         renderFoundPreview();
         renderWaypointsTable();
       });
       document.getElementById("found-color").addEventListener("input", function() {
+        renderFoundPreview();
+        renderWaypointsTable();
+      });
+      foundIconSelect.addEventListener("change", function() {
         renderFoundPreview();
         renderWaypointsTable();
       });
